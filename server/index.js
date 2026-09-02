@@ -2,10 +2,14 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
+const formRoutes = require("./routes/formRoutes");
+
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+app.use("/api/forms", formRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({
