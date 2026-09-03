@@ -4,21 +4,32 @@ const router = express.Router();
 
 const insuranceClaimForm = {
   formId: "insurance-claim",
+
   title: "Insurance Claim Form",
+
   description: "Submit your vehicle insurance claim",
+
   fields: [
     {
       name: "fullName",
       label: "Full Name",
       type: "text",
-      required: true
+      required: true,
+      validation: {
+        minLength: 3
+      }
     },
+
     {
       name: "email",
       label: "Email Address",
       type: "email",
-      required: true
+      required: true,
+      validation: {
+        pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+      }
     },
+
     {
       name: "incidentType",
       label: "Type of Incident",
@@ -39,12 +50,17 @@ const insuranceClaimForm = {
         }
       ]
     },
+
     {
       name: "vehicle",
       label: "Vehicle Name",
       type: "text",
-      required: true
+      required: true,
+      validation: {
+        minLength: 2
+      }
     },
+
     {
       name: "damageType",
       label: "Type of Damage",
@@ -65,6 +81,7 @@ const insuranceClaimForm = {
         }
       ]
     },
+
     {
       name: "policeReport",
       label: "Do you have a police report?",
@@ -81,11 +98,13 @@ const insuranceClaimForm = {
         }
       ]
     },
+
     {
       name: "policeReportNumber",
       label: "Police Report Number",
       type: "text",
       required: true,
+
       showIf: {
         field: "policeReport",
         equals: "yes"

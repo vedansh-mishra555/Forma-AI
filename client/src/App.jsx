@@ -10,7 +10,8 @@ function App() {
   const {
     register,
     watch,
-    handleSubmit
+    handleSubmit,
+    formState: { errors }
   } = useForm();
 
   useEffect(() => {
@@ -50,53 +51,68 @@ function App() {
 
   return (
     <div className="container">
-
       <h1>{formSchema.title}</h1>
 
       <p>{formSchema.description}</p>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-
         {formSchema.fields.map((field) => {
-
           if (!shouldShowField(field)) {
             return null;
           }
 
           return (
             <div className="form-group" key={field.name}>
+              <label>{field.label}</label>
 
-              <label>
-                {field.label}
-              </label>
-
+              {/* TEXT FIELD */}
               {field.type === "text" && (
                 <input
                   type="text"
                   {...register(field.name, {
                     required: field.required
+                      ? `${field.label} is required`
+                      : false,
+
+                    minLength: field.validation?.minLength
+                      ? {
+                          value: field.validation.minLength,
+                          message: `${field.label} must be at least ${field.validation.minLength} characters`
+                        }
+                      : undefined
                   })}
                 />
               )}
 
+              {/* EMAIL FIELD */}
               {field.type === "email" && (
                 <input
                   type="email"
                   {...register(field.name, {
                     required: field.required
+                      ? `${field.label} is required`
+                      : false,
+
+                    pattern: field.validation?.pattern
+                      ? {
+                          value: new RegExp(field.validation.pattern),
+                          message: "Please enter a valid email address"
+                        }
+                      : undefined
                   })}
                 />
               )}
 
+              {/* SELECT FIELD */}
               {field.type === "select" && (
                 <select
                   {...register(field.name, {
                     required: field.required
+                      ? `${field.label} is required`
+                      : false
                   })}
                 >
-                  <option value="">
-                    Select an option
-                  </option>
+                  <option value="">Select an option</option>
 
                   {field.options.map((option) => (
                     <option
@@ -109,6 +125,12 @@ function App() {
                 </select>
               )}
 
+              {/* ERROR MESSAGE */}
+              {errors[field.name] && (
+                <p className="error">
+                  {errors[field.name].message}
+                </p>
+              )}
             </div>
           );
         })}
@@ -116,9 +138,7 @@ function App() {
         <button type="submit">
           Submit Claim
         </button>
-
       </form>
-
     </div>
   );
 }

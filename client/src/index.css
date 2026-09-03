@@ -1,9 +1,25 @@
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f4f6f8;
-}
-
 * {
   box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(10, 20, 40, 0.96),
+      rgba(20, 70, 90, 0.92)
+    ),
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 30px,
+      rgba(255, 255, 255, 0.04) 30px,
+      rgba(255, 255, 255, 0.04) 60px
+    );
+
+  color: #ffffff;
 }
