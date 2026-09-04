@@ -6,11 +6,14 @@ import "./App.css";
 function App() {
   const [formSchema, setFormSchema] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [magicText, setMagicText] = useState("");
+  const [magicLoading, setMagicLoading] = useState(false);
 
   const {
     register,
     watch,
     handleSubmit,
+    setValue,
     formState: { errors }
   } = useForm();
 
@@ -25,6 +28,36 @@ function App() {
         setLoading(false);
       });
   }, []);
+
+  const handleMagicInput = async () => {
+    if (!magicText.trim()) {
+      alert("Please enter some text");
+      return;
+    }
+
+    try {
+      setMagicLoading(true);
+
+      const response = await API.post("/ai/magic-input", {
+        text: magicText
+      });
+
+      const data = response.data.data;
+
+      Object.keys(data).forEach((field) => {
+        if (data[field]) {
+          setValue(field, data[field]);
+        }
+      });
+
+      alert("✨ Magic Input applied successfully!");
+    } catch (error) {
+      console.error(error);
+      alert("AI processing failed");
+    } finally {
+      setMagicLoading(false);
+    }
+  };
 
   const onSubmit = (data) => {
     console.log("Form Data:", data);
@@ -55,6 +88,31 @@ function App() {
 
       <p>{formSchema.description}</p>
 
+      {/* MAGIC INPUT */}
+      <div className="magic-box">
+        <h2>✨ Magic Input</h2>
+
+        <p>
+          Describe your claim in normal language and AI will fill the form
+          automatically.
+        </p>
+
+        <textarea
+          value={magicText}
+          onChange={(e) => setMagicText(e.target.value)}
+          placeholder="Example: My name is Vedansh Mishra, my email is vedansh@gmail.com, my car is a Honda City and it was an accident."
+        />
+
+        <button
+          type="button"
+          onClick={handleMagicInput}
+          disabled={magicLoading}
+        >
+          {magicLoading ? "🤖 AI Processing..." : "✨ Fill Form with AI"}
+        </button>
+      </div>
+
+      {/* FORM */}
       <form onSubmit={handleSubmit(onSubmit)}>
         {formSchema.fields.map((field) => {
           if (!shouldShowField(field)) {
@@ -65,7 +123,6 @@ function App() {
             <div className="form-group" key={field.name}>
               <label>{field.label}</label>
 
-              {/* TEXT FIELD */}
               {field.type === "text" && (
                 <input
                   type="text"
@@ -84,7 +141,6 @@ function App() {
                 />
               )}
 
-              {/* EMAIL FIELD */}
               {field.type === "email" && (
                 <input
                   type="email"
@@ -103,7 +159,6 @@ function App() {
                 />
               )}
 
-              {/* SELECT FIELD */}
               {field.type === "select" && (
                 <select
                   {...register(field.name, {
@@ -115,17 +170,13 @@ function App() {
                   <option value="">Select an option</option>
 
                   {field.options.map((option) => (
-                    <option
-                      key={option.value}
-                      value={option.value}
-                    >
+                    <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
                 </select>
               )}
 
-              {/* ERROR MESSAGE */}
               {errors[field.name] && (
                 <p className="error">
                   {errors[field.name].message}
@@ -135,9 +186,7 @@ function App() {
           );
         })}
 
-        <button type="submit">
-          Submit Claim
-        </button>
+        <button type="submit">Submit Claim</button>
       </form>
     </div>
   );
