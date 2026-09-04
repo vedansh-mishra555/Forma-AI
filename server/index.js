@@ -3,14 +3,14 @@ const cors = require("cors");
 require("dotenv").config();
 
 const formRoutes = require("./routes/formRoutes");
-
+const aiRoutes = require("./routes/aiRoutes");
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
 app.use("/api/forms", formRoutes);
-
+app.use("/api/ai", aiRoutes);
 app.get("/api/health", (req, res) => {
   res.json({
     success: true,
