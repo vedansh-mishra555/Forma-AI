@@ -19,6 +19,7 @@ router.post("/magic-input", async (req, res) => {
     }
 
     console.log("Magic Input received:", text);
+
     console.log(
       "Gemini API key loaded:",
       process.env.GEMINI_API_KEY ? "YES" : "NO"
@@ -26,43 +27,88 @@ router.post("/magic-input", async (req, res) => {
 
     const response = await ai.models.generateContent({
       model: "gemini-3.6-flash",
-      contents: `Extract insurance claim information from this text.
 
-Return JSON with these fields:
-fullName
-email
-incidentType
-vehicle
-damageType
-policeReport
-policeReportNumber
+      contents: `You are an insurance claim form assistant.
 
-Allowed incidentType values:
-accident, animal_collision, theft
+Extract information from the user's text and return ONLY the requested JSON fields.
 
-Allowed damageType values:
-windshield, engine, body
+Rules:
+1. Do not invent information.
+2. If a value is not mentioned, return an empty string.
+3. Use the exact allowed values for incidentType, damageType, and policeReport.
+4. Match natural language to the closest allowed value.
+5. Keep names, emails, vehicle names, and report numbers exactly as provided.
 
-Allowed policeReport values:
-yes, no
+Fields to extract:
+
+fullName:
+The claimant's full name.
+
+email:
+The claimant's email address.
+
+incidentType:
+Must be one of:
+accident
+animal_collision
+theft
+
+vehicle:
+The vehicle name or model.
+
+damageType:
+Must be one of:
+windshield
+engine
+body
+
+policeReport:
+Must be one of:
+yes
+no
+
+policeReportNumber:
+The police report number, if mentioned.
 
 If information is missing, return an empty string.
 
-Text:
+User text:
 ${text}`,
 
       config: {
         responseMimeType: "application/json",
+
         responseSchema: {
           type: "object",
+
           properties: {
-            fullName: { type: "string" },
-            email: { type: "string" },
-            incidentType: { type: "string" },
-            vehicle: { type: "string" },
-            damageType: { type: "string" },
-            policeReport: { type: "string" },
-            policeReportNumber: { type: "string" }
+            fullName: {
+              type: "string"
+            },
+
+            email: {
+              type: "string"
+            },
+
+            incidentType: {
+              type: "string"
+            },
+
+            vehicle: {
+              type: "string"
+            },
+
+            damageType: {
+              type: "string"
+            },
+
+            policeReport: {
+              type: "string"
+            },
+
+            policeReportNumber: {
+              type: "string"
+            }
           }
         }
       }
