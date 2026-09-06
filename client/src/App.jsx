@@ -8,6 +8,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [magicText, setMagicText] = useState("");
   const [magicLoading, setMagicLoading] = useState(false);
+  const [aiPreview, setAiPreview] = useState(null);
 
   const {
     register,
@@ -37,26 +38,33 @@ function App() {
 
     try {
       setMagicLoading(true);
+      setAiPreview(null);
 
       const response = await API.post("/ai/magic-input", {
         text: magicText
       });
 
-      const data = response.data.data;
-
-      Object.keys(data).forEach((field) => {
-        if (data[field]) {
-          setValue(field, data[field]);
-        }
-      });
-
-      alert("✨ Magic Input applied successfully!");
+      setAiPreview(response.data.data);
     } catch (error) {
       console.error(error);
       alert("AI processing failed");
     } finally {
       setMagicLoading(false);
     }
+  };
+
+  const applyAIData = () => {
+    if (!aiPreview) return;
+
+    Object.keys(aiPreview).forEach((field) => {
+      if (aiPreview[field]) {
+        setValue(field, aiPreview[field]);
+      }
+    });
+
+    setAiPreview(null);
+
+    alert("✨ AI data applied to the form!");
   };
 
   const onSubmit = (data) => {
@@ -93,8 +101,8 @@ function App() {
         <h2>✨ Magic Input</h2>
 
         <p>
-          Describe your claim in normal language and AI will fill the form
-          automatically.
+          Describe your claim in normal language and AI will extract the
+          information for you.
         </p>
 
         <textarea
@@ -108,9 +116,43 @@ function App() {
           onClick={handleMagicInput}
           disabled={magicLoading}
         >
-          {magicLoading ? "🤖 AI Processing..." : "✨ Fill Form with AI"}
+          {magicLoading ? "🤖 AI Processing..." : "✨ Extract with AI"}
         </button>
       </div>
+
+      {/* AI PREVIEW */}
+      {aiPreview && (
+        <div className="ai-preview">
+          <h2>🤖 AI Extracted Information</h2>
+
+          <p>Review the information before applying it to the form.</p>
+
+          {Object.entries(aiPreview).map(([field, value]) => (
+            <div className="preview-row" key={field}>
+              <span className="preview-label">
+                {field}
+              </span>
+
+              <input
+                value={value}
+                onChange={(e) =>
+                  setAiPreview({
+                    ...aiPreview,
+                    [field]: e.target.value
+                  })
+                }
+              />
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={applyAIData}
+          >
+            ✅ Apply to Form
+          </button>
+        </div>
+      )}
 
       {/* FORM */}
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -170,7 +212,10 @@ function App() {
                   <option value="">Select an option</option>
 
                   {field.options.map((option) => (
-                    <option key={option.value} value={option.value}>
+                    <option
+                      key={option.value}
+                      value={option.value}
+                    >
                       {option.label}
                     </option>
                   ))}
@@ -186,7 +231,9 @@ function App() {
           );
         })}
 
-        <button type="submit">Submit Claim</button>
+        <button type="submit">
+          Submit Claim
+        </button>
       </form>
     </div>
   );

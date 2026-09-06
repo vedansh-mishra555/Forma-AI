@@ -1,42 +1,407 @@
-.magic-box {
-  margin-bottom: 30px;
-  padding: 20px;
+/* =========================
+   MAIN CONTAINER
+========================= */
 
-  background: #f1f5f9;
-  border-radius: 12px;
-  border: 2px solid #e2e8f0;
+.container {
+  width: 760px;
+  max-width: 92%;
+  margin: 50px auto;
+  padding: 40px;
+
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 24px;
+
+  box-shadow:
+    0 25px 60px rgba(0, 0, 0, 0.35),
+    0 8px 25px rgba(37, 99, 235, 0.12);
+
+  color: #172033;
+}
+
+/* =========================
+   HEADER
+========================= */
+
+h1 {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -1px;
+
+  background: linear-gradient(135deg, #2563eb, #06b6d4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.container > p {
+  margin: 10px 0 30px;
+
+  color: #64748b;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* =========================
+   MAGIC INPUT
+========================= */
+
+.magic-box {
+  position: relative;
+
+  margin-bottom: 30px;
+  padding: 25px;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(37, 99, 235, 0.08),
+      rgba(6, 182, 212, 0.08)
+    );
+
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 18px;
+
+  overflow: hidden;
+}
+
+.magic-box::before {
+  content: "";
+
+  position: absolute;
+  top: -60px;
+  right: -60px;
+
+  width: 150px;
+  height: 150px;
+
+  background: rgba(37, 99, 235, 0.12);
+  border-radius: 50%;
+
+  filter: blur(5px);
 }
 
 .magic-box h2 {
-  margin-top: 0;
-  margin-bottom: 8px;
+  position: relative;
+
+  margin: 0 0 8px;
+
+  font-size: 22px;
+  font-weight: 800;
+
+  color: #172033;
 }
 
 .magic-box p {
-  color: #667085;
+  position: relative;
+
+  margin-bottom: 18px;
+
+  color: #64748b;
   font-size: 14px;
+  line-height: 1.5;
 }
 
 .magic-box textarea {
-  width: 100%;
-  min-height: 100px;
+  position: relative;
 
-  padding: 12px;
+  width: 100%;
+  min-height: 120px;
+
+  padding: 16px;
+
+  background: white;
 
   border: 2px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 12px;
 
   resize: vertical;
+
   font-family: Arial, sans-serif;
   font-size: 15px;
+  line-height: 1.5;
+
+  color: #172033;
 
   outline: none;
+
+  transition: all 0.25s ease;
+}
+
+.magic-box textarea::placeholder {
+  color: #94a3b8;
 }
 
 .magic-box textarea:focus {
   border-color: #2563eb;
+
+  box-shadow:
+    0 0 0 4px rgba(37, 99, 235, 0.1);
 }
 
+/* =========================
+   AI BUTTON
+========================= */
+
 .magic-box button {
+  position: relative;
+
+  width: 100%;
   margin-top: 15px;
+  padding: 14px 20px;
+
+  border: none;
+  border-radius: 11px;
+
+  background: linear-gradient(
+    135deg,
+    #2563eb,
+    #06b6d4
+  );
+
+  color: white;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 8px 20px rgba(37, 99, 235, 0.25);
+
+  transition: all 0.25s ease;
+}
+
+.magic-box button:hover {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 12px 28px rgba(37, 99, 235, 0.35);
+}
+
+.magic-box button:active {
+  transform: translateY(0);
+}
+
+.magic-box button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* =========================
+   AI PREVIEW
+========================= */
+
+.ai-preview {
+  margin-bottom: 30px;
+  padding: 25px;
+
+  background: #f8fafc;
+
+  border: 1px solid #dbeafe;
+  border-radius: 18px;
+
+  box-shadow:
+    0 8px 25px rgba(15, 23, 42, 0.06);
+}
+
+.ai-preview h2 {
+  margin: 0 0 8px;
+
+  color: #172033;
+
+  font-size: 21px;
+}
+
+.ai-preview > p {
+  margin-bottom: 20px;
+
+  color: #64748b;
+  font-size: 14px;
+}
+
+/* =========================
+   PREVIEW ROW
+========================= */
+
+.preview-row {
+  margin-top: 15px;
+}
+
+.preview-label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: #334155;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  text-transform: capitalize;
+}
+
+.preview-row input {
+  background: white;
+}
+
+.ai-preview button {
+  width: 100%;
+
+  margin-top: 22px;
+  padding: 14px;
+
+  border: none;
+  border-radius: 10px;
+
+  background: linear-gradient(
+    135deg,
+    #16a34a,
+    #22c55e
+  );
+
+  color: white;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition: all 0.25s ease;
+}
+
+.ai-preview button:hover {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 8px 20px rgba(22, 163, 74, 0.25);
+}
+
+/* =========================
+   FORM
+========================= */
+
+form {
+  margin-top: 10px;
+}
+
+.form-group {
+  margin-top: 22px;
+}
+
+label {
+  display: block;
+
+  margin-bottom: 8px;
+
+  color: #334155;
+
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* =========================
+   INPUTS
+========================= */
+
+input,
+select {
+  width: 100%;
+
+  padding: 13px 14px;
+
+  background: white;
+
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+
+  color: #172033;
+
+  font-size: 15px;
+
+  outline: none;
+
+  transition: all 0.2s ease;
+}
+
+input:hover,
+select:hover {
+  border-color: #cbd5e1;
+}
+
+input:focus,
+select:focus {
+  border-color: #2563eb;
+
+  box-shadow:
+    0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+/* =========================
+   ERROR
+========================= */
+
+.error {
+  margin: 7px 0 0;
+
+  color: #dc2626;
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* =========================
+   SUBMIT BUTTON
+========================= */
+
+form > button {
+  width: 100%;
+
+  margin-top: 32px;
+  padding: 15px;
+
+  border: none;
+  border-radius: 11px;
+
+  background: #172033;
+
+  color: white;
+
+  font-size: 16px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition: all 0.25s ease;
+}
+
+form > button:hover {
+  background: #0f172a;
+
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 10px 25px rgba(15, 23, 42, 0.25);
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 600px) {
+  .container {
+    margin: 20px auto;
+    padding: 25px;
+    border-radius: 18px;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+
+  .magic-box,
+  .ai-preview {
+    padding: 18px;
+  }
 }
