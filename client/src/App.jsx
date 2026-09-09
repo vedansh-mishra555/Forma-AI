@@ -6,9 +6,11 @@ import "./App.css";
 function App() {
   const [formSchema, setFormSchema] = useState(null);
   const [loading, setLoading] = useState(true);
+
   const [magicText, setMagicText] = useState("");
   const [magicLoading, setMagicLoading] = useState(false);
   const [aiPreview, setAiPreview] = useState(null);
+  const [submitLoading, setSubmitLoading] = useState(false);
 
   const {
     register,
@@ -18,6 +20,7 @@ function App() {
     formState: { errors }
   } = useForm();
 
+  // Load form schema
   useEffect(() => {
     API.get("/forms/insurance-claim")
       .then((response) => {
@@ -25,11 +28,12 @@ function App() {
         setLoading(false);
       })
       .catch((error) => {
-        console.error(error);
+        console.error("Form loading failed:", error);
         setLoading(false);
       });
   }, []);
 
+  // AI Magic Input
   const handleMagicInput = async () => {
     if (!magicText.trim()) {
       alert("Please enter some text");
@@ -46,13 +50,14 @@ function App() {
 
       setAiPreview(response.data.data);
     } catch (error) {
-      console.error(error);
-      alert("AI processing failed");
+      console.error("AI processing failed:", error);
+      alert("❌ AI processing failed");
     } finally {
       setMagicLoading(false);
     }
   };
 
+  // Apply AI data to form
   const applyAIData = () => {
     if (!aiPreview) return;
 
@@ -67,11 +72,29 @@ function App() {
     alert("✨ AI data applied to the form!");
   };
 
-  const onSubmit = (data) => {
-    console.log("Form Data:", data);
-    alert("Form submitted successfully!");
+  // Submit form to MongoDB
+  const onSubmit = async (data) => {
+    try {
+      setSubmitLoading(true);
+
+      const response = await API.post("/submissions", {
+        formId: formSchema.formId,
+        data: data
+      });
+
+      console.log("Submission saved:", response.data);
+
+      alert("✅ Claim submitted successfully!");
+    } catch (error) {
+      console.error("Submission failed:", error);
+
+      alert("❌ Failed to submit claim");
+    } finally {
+      setSubmitLoading(false);
+    }
   };
 
+  // Conditional field logic
   const shouldShowField = (field) => {
     if (!field.showIf) {
       return true;
@@ -96,13 +119,16 @@ function App() {
 
       <p>{formSchema.description}</p>
 
-      {/* MAGIC INPUT */}
+      {/* =========================
+          MAGIC INPUT
+      ========================= */}
+
       <div className="magic-box">
         <h2>✨ Magic Input</h2>
 
         <p>
-          Describe your claim in normal language and AI will extract the
-          information for you.
+          Describe your claim in normal language and AI will extract
+          the information for you.
         </p>
 
         <textarea
@@ -116,16 +142,24 @@ function App() {
           onClick={handleMagicInput}
           disabled={magicLoading}
         >
-          {magicLoading ? "🤖 AI Processing..." : "✨ Extract with AI"}
+          {magicLoading
+            ? "🤖 AI Processing..."
+            : "✨ Extract with AI"}
         </button>
       </div>
 
-      {/* AI PREVIEW */}
+      {/* =========================
+          AI PREVIEW
+      ========================= */}
+
       {aiPreview && (
         <div className="ai-preview">
           <h2>🤖 AI Extracted Information</h2>
 
-          <p>Review the information before applying it to the form.</p>
+          <p>
+            Review and edit the information before applying it
+            to the form.
+          </p>
 
           {Object.entries(aiPreview).map(([field, value]) => (
             <div className="preview-row" key={field}>
@@ -154,7 +188,10 @@ function App() {
         </div>
       )}
 
-      {/* FORM */}
+      {/* =========================
+          DYNAMIC FORM
+      ========================= */}
+
       <form onSubmit={handleSubmit(onSubmit)}>
         {formSchema.fields.map((field) => {
           if (!shouldShowField(field)) {
@@ -165,6 +202,7 @@ function App() {
             <div className="form-group" key={field.name}>
               <label>{field.label}</label>
 
+              {/* TEXT */}
               {field.type === "text" && (
                 <input
                   type="text"
@@ -183,6 +221,7 @@ function App() {
                 />
               )}
 
+              {/* EMAIL */}
               {field.type === "email" && (
                 <input
                   type="email"
@@ -193,14 +232,18 @@ function App() {
 
                     pattern: field.validation?.pattern
                       ? {
-                          value: new RegExp(field.validation.pattern),
-                          message: "Please enter a valid email address"
+                          value: new RegExp(
+                            field.validation.pattern
+                          ),
+                          message:
+                            "Please enter a valid email address"
                         }
                       : undefined
                   })}
                 />
               )}
 
+              {/* SELECT */}
               {field.type === "select" && (
                 <select
                   {...register(field.name, {
@@ -209,7 +252,9 @@ function App() {
                       : false
                   })}
                 >
-                  <option value="">Select an option</option>
+                  <option value="">
+                    Select an option
+                  </option>
 
                   {field.options.map((option) => (
                     <option
@@ -222,6 +267,7 @@ function App() {
                 </select>
               )}
 
+              {/* ERROR */}
               {errors[field.name] && (
                 <p className="error">
                   {errors[field.name].message}
@@ -231,8 +277,14 @@ function App() {
           );
         })}
 
-        <button type="submit">
-          Submit Claim
+        {/* SUBMIT */}
+        <button
+          type="submit"
+          disabled={submitLoading}
+        >
+          {submitLoading
+            ? "Saving Claim..."
+            : "Submit Claim"}
         </button>
       </form>
     </div>
