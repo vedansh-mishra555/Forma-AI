@@ -119,10 +119,7 @@ function App() {
 
       <p>{formSchema.description}</p>
 
-      {/* =========================
-          MAGIC INPUT
-      ========================= */}
-
+      {/* MAGIC INPUT */}
       <div className="magic-box">
         <h2>✨ Magic Input</h2>
 
@@ -148,10 +145,7 @@ function App() {
         </button>
       </div>
 
-      {/* =========================
-          AI PREVIEW
-      ========================= */}
-
+      {/* AI PREVIEW */}
       {aiPreview && (
         <div className="ai-preview">
           <h2>🤖 AI Extracted Information</h2>
@@ -188,10 +182,7 @@ function App() {
         </div>
       )}
 
-      {/* =========================
-          DYNAMIC FORM
-      ========================= */}
-
+      {/* DYNAMIC FORM */}
       <form onSubmit={handleSubmit(onSubmit)}>
         {formSchema.fields.map((field) => {
           if (!shouldShowField(field)) {
@@ -283,8 +274,8 @@ function App() {
           disabled={submitLoading}
         >
           {submitLoading
-            ? "Saving Claim..."
-            : "Submit Claim"}
+            ? "⏳ Saving Your Claim..."
+            : "🚀 Submit Claim"}
         </button>
       </form>
     </div>
