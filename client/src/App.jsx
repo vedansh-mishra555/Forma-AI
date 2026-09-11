@@ -10,13 +10,16 @@ function App() {
   const [magicText, setMagicText] = useState("");
   const [magicLoading, setMagicLoading] = useState(false);
   const [aiPreview, setAiPreview] = useState(null);
+
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   const {
     register,
     watch,
     handleSubmit,
     setValue,
+    reset,
     formState: { errors }
   } = useForm();
 
@@ -72,23 +75,28 @@ function App() {
     alert("✨ AI data applied to the form!");
   };
 
-  // Submit form to MongoDB
+  // Submit form
   const onSubmit = async (data) => {
     try {
       setSubmitLoading(true);
+      setSubmitSuccess(false);
 
-      const response = await API.post("/submissions", {
+      await API.post("/submissions", {
         formId: formSchema.formId,
         data: data
       });
 
-      console.log("Submission saved:", response.data);
+      setSubmitSuccess(true);
 
-      alert("✅ Claim submitted successfully!");
+      reset();
+      setMagicText("");
+      setAiPreview(null);
+
     } catch (error) {
       console.error("Submission failed:", error);
 
       alert("❌ Failed to submit claim");
+
     } finally {
       setSubmitLoading(false);
     }
@@ -119,13 +127,31 @@ function App() {
 
       <p>{formSchema.description}</p>
 
+      {/* SUCCESS MESSAGE */}
+      {submitSuccess && (
+        <div className="success-message">
+          <h2>🎉 Claim Submitted Successfully!</h2>
+
+          <p>
+            Your insurance claim has been saved successfully.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setSubmitSuccess(false)}
+          >
+            Submit Another Claim
+          </button>
+        </div>
+      )}
+
       {/* MAGIC INPUT */}
       <div className="magic-box">
         <h2>✨ Magic Input</h2>
 
         <p>
-          Describe your claim in normal language and AI will extract
-          the information for you.
+          Describe your claim in normal language and AI will
+          extract the information for you.
         </p>
 
         <textarea
@@ -193,7 +219,6 @@ function App() {
             <div className="form-group" key={field.name}>
               <label>{field.label}</label>
 
-              {/* TEXT */}
               {field.type === "text" && (
                 <input
                   type="text"
@@ -212,7 +237,6 @@ function App() {
                 />
               )}
 
-              {/* EMAIL */}
               {field.type === "email" && (
                 <input
                   type="email"
@@ -234,7 +258,6 @@ function App() {
                 />
               )}
 
-              {/* SELECT */}
               {field.type === "select" && (
                 <select
                   {...register(field.name, {
@@ -258,7 +281,6 @@ function App() {
                 </select>
               )}
 
-              {/* ERROR */}
               {errors[field.name] && (
                 <p className="error">
                   {errors[field.name].message}
@@ -268,7 +290,6 @@ function App() {
           );
         })}
 
-        {/* SUBMIT */}
         <button
           type="submit"
           disabled={submitLoading}
