@@ -3,6 +3,27 @@ const Submission = require("../models/Submission");
 
 const router = express.Router();
 
+// GET all submissions
+router.get("/", async (req, res) => {
+  try {
+    const submissions = await Submission.find()
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      submissions
+    });
+  } catch (error) {
+    console.error("Fetch submissions error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch submissions"
+    });
+  }
+});
+
+// POST a new submission
 router.post("/", async (req, res) => {
   try {
     const { formId, data } = req.body;

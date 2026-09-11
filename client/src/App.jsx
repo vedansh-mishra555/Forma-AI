@@ -14,6 +14,10 @@ function App() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
+  // Submission history
+  const [submissions, setSubmissions] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   const {
     register,
     watch,
@@ -23,7 +27,10 @@ function App() {
     formState: { errors }
   } = useForm();
 
-  // Load form schema
+  // =========================
+  // LOAD FORM SCHEMA
+  // =========================
+
   useEffect(() => {
     API.get("/forms/insurance-claim")
       .then((response) => {
@@ -36,7 +43,33 @@ function App() {
       });
   }, []);
 
-  // AI Magic Input
+  // =========================
+  // LOAD SUBMISSIONS
+  // =========================
+
+  const loadSubmissions = async () => {
+    try {
+      setHistoryLoading(true);
+
+      const response = await API.get("/submissions");
+
+      setSubmissions(response.data.submissions || []);
+    } catch (error) {
+      console.error("Failed to load submissions:", error);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // Load submissions when page opens
+  useEffect(() => {
+    loadSubmissions();
+  }, []);
+
+  // =========================
+  // AI MAGIC INPUT
+  // =========================
+
   const handleMagicInput = async () => {
     if (!magicText.trim()) {
       alert("Please enter some text");
@@ -60,7 +93,10 @@ function App() {
     }
   };
 
-  // Apply AI data to form
+  // =========================
+  // APPLY AI DATA
+  // =========================
+
   const applyAIData = () => {
     if (!aiPreview) return;
 
@@ -75,7 +111,10 @@ function App() {
     alert("✨ AI data applied to the form!");
   };
 
-  // Submit form
+  // =========================
+  // SUBMIT FORM
+  // =========================
+
   const onSubmit = async (data) => {
     try {
       setSubmitLoading(true);
@@ -88,6 +127,10 @@ function App() {
 
       setSubmitSuccess(true);
 
+      // Refresh submission history
+      await loadSubmissions();
+
+      // Clear form
       reset();
       setMagicText("");
       setAiPreview(null);
@@ -96,13 +139,15 @@ function App() {
       console.error("Submission failed:", error);
 
       alert("❌ Failed to submit claim");
-
     } finally {
       setSubmitLoading(false);
     }
   };
 
-  // Conditional field logic
+  // =========================
+  // CONDITIONAL FIELD LOGIC
+  // =========================
+
   const shouldShowField = (field) => {
     if (!field.showIf) {
       return true;
@@ -113,6 +158,10 @@ function App() {
     return value === field.showIf.equals;
   };
 
+  // =========================
+  // LOADING
+  // =========================
+
   if (loading) {
     return <h2>Loading Forma AI form...</h2>;
   }
@@ -121,13 +170,21 @@ function App() {
     return <h2>Unable to load form.</h2>;
   }
 
+  // =========================
+  // UI
+  // =========================
+
   return (
     <div className="container">
+
       <h1>{formSchema.title}</h1>
 
       <p>{formSchema.description}</p>
 
-      {/* SUCCESS MESSAGE */}
+      {/* =========================
+          SUCCESS MESSAGE
+      ========================= */}
+
       {submitSuccess && (
         <div className="success-message">
           <h2>🎉 Claim Submitted Successfully!</h2>
@@ -145,8 +202,12 @@ function App() {
         </div>
       )}
 
-      {/* MAGIC INPUT */}
+      {/* =========================
+          MAGIC INPUT
+      ========================= */}
+
       <div className="magic-box">
+
         <h2>✨ Magic Input</h2>
 
         <p>
@@ -169,11 +230,16 @@ function App() {
             ? "🤖 AI Processing..."
             : "✨ Extract with AI"}
         </button>
+
       </div>
 
-      {/* AI PREVIEW */}
+      {/* =========================
+          AI PREVIEW
+      ========================= */}
+
       {aiPreview && (
         <div className="ai-preview">
+
           <h2>🤖 AI Extracted Information</h2>
 
           <p>
@@ -183,6 +249,7 @@ function App() {
 
           {Object.entries(aiPreview).map(([field, value]) => (
             <div className="preview-row" key={field}>
+
               <span className="preview-label">
                 {field}
               </span>
@@ -196,6 +263,7 @@ function App() {
                   })
                 }
               />
+
             </div>
           ))}
 
@@ -205,20 +273,28 @@ function App() {
           >
             ✅ Apply to Form
           </button>
+
         </div>
       )}
 
-      {/* DYNAMIC FORM */}
+      {/* =========================
+          DYNAMIC FORM
+      ========================= */}
+
       <form onSubmit={handleSubmit(onSubmit)}>
+
         {formSchema.fields.map((field) => {
+
           if (!shouldShowField(field)) {
             return null;
           }
 
           return (
             <div className="form-group" key={field.name}>
+
               <label>{field.label}</label>
 
+              {/* TEXT */}
               {field.type === "text" && (
                 <input
                   type="text"
@@ -237,6 +313,7 @@ function App() {
                 />
               )}
 
+              {/* EMAIL */}
               {field.type === "email" && (
                 <input
                   type="email"
@@ -258,6 +335,7 @@ function App() {
                 />
               )}
 
+              {/* SELECT */}
               {field.type === "select" && (
                 <select
                   {...register(field.name, {
@@ -266,6 +344,7 @@ function App() {
                       : false
                   })}
                 >
+
                   <option value="">
                     Select an option
                   </option>
@@ -278,17 +357,22 @@ function App() {
                       {option.label}
                     </option>
                   ))}
+
                 </select>
               )}
 
+              {/* ERROR */}
               {errors[field.name] && (
                 <p className="error">
                   {errors[field.name].message}
                 </p>
               )}
+
             </div>
           );
         })}
+
+        {/* SUBMIT */}
 
         <button
           type="submit"
@@ -298,7 +382,110 @@ function App() {
             ? "⏳ Saving Your Claim..."
             : "🚀 Submit Claim"}
         </button>
+
       </form>
+
+      {/* =========================
+          SUBMISSION HISTORY
+      ========================= */}
+
+      <div className="submission-history">
+
+        <div className="history-header">
+
+          <div>
+            <h2>📋 Recent Submissions</h2>
+
+            <p>
+              View your previously submitted insurance claims.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={loadSubmissions}
+            disabled={historyLoading}
+          >
+            {historyLoading
+              ? "Loading..."
+              : "🔄 Refresh"}
+          </button>
+
+        </div>
+
+        {/* NO SUBMISSIONS */}
+
+        {submissions.length === 0 ? (
+
+          <div className="empty-history">
+            <p>📭 No submissions found.</p>
+          </div>
+
+        ) : (
+
+          <div className="submission-list">
+
+            {submissions.map((submission) => (
+
+              <div
+                className="submission-card"
+                key={submission._id}
+              >
+
+                <h3>
+                  {submission.data?.fullName ||
+                    "Unknown Claimant"}
+                </h3>
+
+                <p>
+                  📧{" "}
+                  {submission.data?.email ||
+                    "No email"}
+                </p>
+
+                <p>
+                  🚗{" "}
+                  {submission.data?.vehicle ||
+                    "No vehicle"}
+                </p>
+
+                <p>
+                  📌{" "}
+                  {submission.data?.incidentType
+                    ? submission.data.incidentType.replace(
+                        "_",
+                        " "
+                      )
+                    : "Unknown incident"}
+                </p>
+
+                {submission.data?.damageType && (
+                  <p>
+                    🔧{" "}
+                    {submission.data.damageType.replace(
+                      "_",
+                      " "
+                    )}
+                  </p>
+                )}
+
+                <span>
+                  Submitted:{" "}
+                  {new Date(
+                    submission.createdAt
+                  ).toLocaleString()}
+                </span>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        )}
+
+      </div>
+
     </div>
   );
 }
