@@ -61,10 +61,37 @@ function App() {
     }
   };
 
-  // Load submissions when page opens
   useEffect(() => {
     loadSubmissions();
   }, []);
+
+  // =========================
+  // DELETE SUBMISSION
+  // =========================
+
+  const deleteSubmission = async (id) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this claim?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await API.delete(`/submissions/${id}`);
+
+      setSubmissions((current) =>
+        current.filter(
+          (submission) => submission._id !== id
+        )
+      );
+
+      alert("🗑️ Claim deleted successfully!");
+    } catch (error) {
+      console.error("Delete failed:", error);
+
+      alert("❌ Failed to delete claim");
+    }
+  };
 
   // =========================
   // AI MAGIC INPUT
@@ -87,6 +114,7 @@ function App() {
       setAiPreview(response.data.data);
     } catch (error) {
       console.error("AI processing failed:", error);
+
       alert("❌ AI processing failed");
     } finally {
       setMagicLoading(false);
@@ -134,7 +162,6 @@ function App() {
       reset();
       setMagicText("");
       setAiPreview(null);
-
     } catch (error) {
       console.error("Submission failed:", error);
 
@@ -290,11 +317,15 @@ function App() {
           }
 
           return (
-            <div className="form-group" key={field.name}>
+            <div
+              className="form-group"
+              key={field.name}
+            >
 
               <label>{field.label}</label>
 
               {/* TEXT */}
+
               {field.type === "text" && (
                 <input
                   type="text"
@@ -303,17 +334,20 @@ function App() {
                       ? `${field.label} is required`
                       : false,
 
-                    minLength: field.validation?.minLength
-                      ? {
-                          value: field.validation.minLength,
-                          message: `${field.label} must be at least ${field.validation.minLength} characters`
-                        }
-                      : undefined
+                    minLength:
+                      field.validation?.minLength
+                        ? {
+                            value:
+                              field.validation.minLength,
+                            message: `${field.label} must be at least ${field.validation.minLength} characters`
+                          }
+                        : undefined
                   })}
                 />
               )}
 
               {/* EMAIL */}
+
               {field.type === "email" && (
                 <input
                   type="email"
@@ -322,20 +356,22 @@ function App() {
                       ? `${field.label} is required`
                       : false,
 
-                    pattern: field.validation?.pattern
-                      ? {
-                          value: new RegExp(
-                            field.validation.pattern
-                          ),
-                          message:
-                            "Please enter a valid email address"
-                        }
-                      : undefined
+                    pattern:
+                      field.validation?.pattern
+                        ? {
+                            value: new RegExp(
+                              field.validation.pattern
+                            ),
+                            message:
+                              "Please enter a valid email address"
+                          }
+                        : undefined
                   })}
                 />
               )}
 
               {/* SELECT */}
+
               {field.type === "select" && (
                 <select
                   {...register(field.name, {
@@ -362,6 +398,7 @@ function App() {
               )}
 
               {/* ERROR */}
+
               {errors[field.name] && (
                 <p className="error">
                   {errors[field.name].message}
@@ -475,6 +512,20 @@ function App() {
                     submission.createdAt
                   ).toLocaleString()}
                 </span>
+
+                {/* DELETE */}
+
+                <button
+                  type="button"
+                  className="delete-button"
+                  onClick={() =>
+                    deleteSubmission(
+                      submission._id
+                    )
+                  }
+                >
+                  🗑️ Delete
+                </button>
 
               </div>
 

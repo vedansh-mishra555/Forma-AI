@@ -3,7 +3,10 @@ const Submission = require("../models/Submission");
 
 const router = express.Router();
 
-// GET all submissions
+// =========================
+// GET ALL SUBMISSIONS
+// =========================
+
 router.get("/", async (req, res) => {
   try {
     const submissions = await Submission.find()
@@ -23,7 +26,10 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST a new submission
+// =========================
+// POST A NEW SUBMISSION
+// =========================
+
 router.post("/", async (req, res) => {
   try {
     const { formId, data } = req.body;
@@ -51,6 +57,37 @@ router.post("/", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to save submission"
+    });
+  }
+});
+
+// =========================
+// DELETE A SUBMISSION
+// =========================
+
+router.delete("/:id", async (req, res) => {
+  try {
+    const submission = await Submission.findByIdAndDelete(
+      req.params.id
+    );
+
+    if (!submission) {
+      return res.status(404).json({
+        success: false,
+        message: "Submission not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Submission deleted successfully"
+    });
+  } catch (error) {
+    console.error("Delete submission error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete submission"
     });
   }
 });
