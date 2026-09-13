@@ -18,6 +18,12 @@ function App() {
   const [submissions, setSubmissions] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // View / Edit submission
+  const [selectedSubmission, setSelectedSubmission] =
+    useState(null);
+  const [editData, setEditData] = useState({});
+  const [editLoading, setEditLoading] = useState(false);
+
   const {
     register,
     watch,
@@ -66,6 +72,60 @@ function App() {
   }, []);
 
   // =========================
+  // VIEW SUBMISSION
+  // =========================
+
+  const viewSubmission = async (id) => {
+    try {
+      const response = await API.get(
+        `/submissions/${id}`
+      );
+
+      setSelectedSubmission(response.data.submission);
+      setEditData(response.data.submission.data);
+    } catch (error) {
+      console.error(
+        "Failed to load submission:",
+        error
+      );
+
+      alert("❌ Failed to load submission");
+    }
+  };
+
+  // =========================
+  // UPDATE SUBMISSION
+  // =========================
+
+  const updateSubmission = async () => {
+    if (!selectedSubmission) return;
+
+    try {
+      setEditLoading(true);
+
+      await API.put(
+        `/submissions/${selectedSubmission._id}`,
+        {
+          data: editData
+        }
+      );
+
+      alert("✅ Submission updated successfully!");
+
+      setSelectedSubmission(null);
+      setEditData({});
+
+      await loadSubmissions();
+    } catch (error) {
+      console.error("Update failed:", error);
+
+      alert("❌ Failed to update submission");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // =========================
   // DELETE SUBMISSION
   // =========================
 
@@ -84,6 +144,14 @@ function App() {
           (submission) => submission._id !== id
         )
       );
+
+      if (
+        selectedSubmission &&
+        selectedSubmission._id === id
+      ) {
+        setSelectedSubmission(null);
+        setEditData({});
+      }
 
       alert("🗑️ Claim deleted successfully!");
     } catch (error) {
@@ -107,13 +175,19 @@ function App() {
       setMagicLoading(true);
       setAiPreview(null);
 
-      const response = await API.post("/ai/magic-input", {
-        text: magicText
-      });
+      const response = await API.post(
+        "/ai/magic-input",
+        {
+          text: magicText
+        }
+      );
 
       setAiPreview(response.data.data);
     } catch (error) {
-      console.error("AI processing failed:", error);
+      console.error(
+        "AI processing failed:",
+        error
+      );
 
       alert("❌ AI processing failed");
     } finally {
@@ -155,15 +229,16 @@ function App() {
 
       setSubmitSuccess(true);
 
-      // Refresh submission history
       await loadSubmissions();
 
-      // Clear form
       reset();
       setMagicText("");
       setAiPreview(null);
     } catch (error) {
-      console.error("Submission failed:", error);
+      console.error(
+        "Submission failed:",
+        error
+      );
 
       alert("❌ Failed to submit claim");
     } finally {
@@ -214,18 +289,25 @@ function App() {
 
       {submitSuccess && (
         <div className="success-message">
-          <h2>🎉 Claim Submitted Successfully!</h2>
+
+          <h2>
+            🎉 Claim Submitted Successfully!
+          </h2>
 
           <p>
-            Your insurance claim has been saved successfully.
+            Your insurance claim has been saved
+            successfully.
           </p>
 
           <button
             type="button"
-            onClick={() => setSubmitSuccess(false)}
+            onClick={() =>
+              setSubmitSuccess(false)
+            }
           >
             Submit Another Claim
           </button>
+
         </div>
       )}
 
@@ -238,13 +320,15 @@ function App() {
         <h2>✨ Magic Input</h2>
 
         <p>
-          Describe your claim in normal language and AI will
-          extract the information for you.
+          Describe your claim in normal language
+          and AI will extract the information for you.
         </p>
 
         <textarea
           value={magicText}
-          onChange={(e) => setMagicText(e.target.value)}
+          onChange={(e) =>
+            setMagicText(e.target.value)
+          }
           placeholder="Example: My name is Vedansh Mishra, my email is vedansh@gmail.com, my car is a Honda City and it was an accident."
         />
 
@@ -267,32 +351,39 @@ function App() {
       {aiPreview && (
         <div className="ai-preview">
 
-          <h2>🤖 AI Extracted Information</h2>
+          <h2>
+            🤖 AI Extracted Information
+          </h2>
 
           <p>
-            Review and edit the information before applying it
-            to the form.
+            Review and edit the information before
+            applying it to the form.
           </p>
 
-          {Object.entries(aiPreview).map(([field, value]) => (
-            <div className="preview-row" key={field}>
+          {Object.entries(aiPreview).map(
+            ([field, value]) => (
+              <div
+                className="preview-row"
+                key={field}
+              >
 
-              <span className="preview-label">
-                {field}
-              </span>
+                <span className="preview-label">
+                  {field}
+                </span>
 
-              <input
-                value={value}
-                onChange={(e) =>
-                  setAiPreview({
-                    ...aiPreview,
-                    [field]: e.target.value
-                  })
-                }
-              />
+                <input
+                  value={value}
+                  onChange={(e) =>
+                    setAiPreview({
+                      ...aiPreview,
+                      [field]: e.target.value
+                    })
+                  }
+                />
 
-            </div>
-          ))}
+              </div>
+            )
+          )}
 
           <button
             type="button"
@@ -308,7 +399,9 @@ function App() {
           DYNAMIC FORM
       ========================= */}
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+      >
 
         {formSchema.fields.map((field) => {
 
@@ -338,8 +431,11 @@ function App() {
                       field.validation?.minLength
                         ? {
                             value:
-                              field.validation.minLength,
-                            message: `${field.label} must be at least ${field.validation.minLength} characters`
+                              field.validation
+                                .minLength,
+
+                            message:
+                              `${field.label} must be at least ${field.validation.minLength} characters`
                           }
                         : undefined
                   })}
@@ -360,8 +456,10 @@ function App() {
                       field.validation?.pattern
                         ? {
                             value: new RegExp(
-                              field.validation.pattern
+                              field.validation
+                                .pattern
                             ),
+
                             message:
                               "Please enter a valid email address"
                           }
@@ -385,14 +483,16 @@ function App() {
                     Select an option
                   </option>
 
-                  {field.options.map((option) => (
-                    <option
-                      key={option.value}
-                      value={option.value}
-                    >
-                      {option.label}
-                    </option>
-                  ))}
+                  {field.options.map(
+                    (option) => (
+                      <option
+                        key={option.value}
+                        value={option.value}
+                      >
+                        {option.label}
+                      </option>
+                    )
+                  )}
 
                 </select>
               )}
@@ -431,11 +531,16 @@ function App() {
         <div className="history-header">
 
           <div>
-            <h2>📋 Recent Submissions</h2>
+
+            <h2>
+              📋 Recent Submissions
+            </h2>
 
             <p>
-              View your previously submitted insurance claims.
+              View your previously submitted
+              insurance claims.
             </p>
+
           </div>
 
           <button
@@ -455,87 +560,170 @@ function App() {
         {submissions.length === 0 ? (
 
           <div className="empty-history">
-            <p>📭 No submissions found.</p>
+            <p>
+              📭 No submissions found.
+            </p>
           </div>
 
         ) : (
 
           <div className="submission-list">
 
-            {submissions.map((submission) => (
+            {submissions.map(
+              (submission) => (
 
-              <div
-                className="submission-card"
-                key={submission._id}
-              >
-
-                <h3>
-                  {submission.data?.fullName ||
-                    "Unknown Claimant"}
-                </h3>
-
-                <p>
-                  📧{" "}
-                  {submission.data?.email ||
-                    "No email"}
-                </p>
-
-                <p>
-                  🚗{" "}
-                  {submission.data?.vehicle ||
-                    "No vehicle"}
-                </p>
-
-                <p>
-                  📌{" "}
-                  {submission.data?.incidentType
-                    ? submission.data.incidentType.replace(
-                        "_",
-                        " "
-                      )
-                    : "Unknown incident"}
-                </p>
-
-                {submission.data?.damageType && (
-                  <p>
-                    🔧{" "}
-                    {submission.data.damageType.replace(
-                      "_",
-                      " "
-                    )}
-                  </p>
-                )}
-
-                <span>
-                  Submitted:{" "}
-                  {new Date(
-                    submission.createdAt
-                  ).toLocaleString()}
-                </span>
-
-                {/* DELETE */}
-
-                <button
-                  type="button"
-                  className="delete-button"
-                  onClick={() =>
-                    deleteSubmission(
-                      submission._id
-                    )
-                  }
+                <div
+                  className="submission-card"
+                  key={submission._id}
                 >
-                  🗑️ Delete
-                </button>
 
-              </div>
+                  <h3>
+                    {submission.data?.fullName ||
+                      "Unknown Claimant"}
+                  </h3>
 
-            ))}
+                  <p>
+                    📧{" "}
+                    {submission.data?.email ||
+                      "No email"}
+                  </p>
+
+                  <p>
+                    🚗{" "}
+                    {submission.data?.vehicle ||
+                      "No vehicle"}
+                  </p>
+
+                  <p>
+                    📌{" "}
+                    {submission.data
+                      ?.incidentType
+                      ? submission.data.incidentType
+                          .replace("_", " ")
+                      : "Unknown incident"}
+                  </p>
+
+                  {submission.data
+                    ?.damageType && (
+                    <p>
+                      🔧{" "}
+                      {submission.data.damageType
+                        .replace("_", " ")}
+                    </p>
+                  )}
+
+                  <span>
+                    Submitted:{" "}
+                    {new Date(
+                      submission.createdAt
+                    ).toLocaleString()}
+                  </span>
+
+                  {/* VIEW / EDIT */}
+
+                  <button
+                    type="button"
+                    className="view-button"
+                    onClick={() =>
+                      viewSubmission(
+                        submission._id
+                      )
+                    }
+                  >
+                    👁️ View / Edit
+                  </button>
+
+                  {/* DELETE */}
+
+                  <button
+                    type="button"
+                    className="delete-button"
+                    onClick={() =>
+                      deleteSubmission(
+                        submission._id
+                      )
+                    }
+                  >
+                    🗑️ Delete
+                  </button>
+
+                </div>
+
+              )
+            )}
 
           </div>
 
         )}
 
       </div>
+
+      {/* =========================
+          EDIT SUBMISSION
+      ========================= */}
+
+      {selectedSubmission && (
+        <div className="ai-preview">
+
+          <h2>
+            ✏️ Edit Submission
+          </h2>
+
+          <p>
+            Review and update your saved
+            insurance claim.
+          </p>
+
+          {Object.entries(editData).map(
+            ([field, value]) => (
+
+              <div
+                className="preview-row"
+                key={field}
+              >
+
+                <span className="preview-label">
+                  {field}
+                </span>
+
+                <input
+                  value={value || ""}
+                  onChange={(e) =>
+                    setEditData({
+                      ...editData,
+                      [field]: e.target.value
+                    })
+                  }
+                />
+
+              </div>
+
+            )
+          )}
+
+          <button
+            type="button"
+            onClick={updateSubmission}
+            disabled={editLoading}
+          >
+            {editLoading
+              ? "⏳ Updating..."
+              : "💾 Save Changes"}
+          </button>
+
+          <button
+            type="button"
+            className="delete-button"
+            onClick={() => {
+              setSelectedSubmission(null);
+              setEditData({});
+            }}
+          >
+            ❌ Cancel
+          </button>
+
+        </div>
+      )}
 
     </div>
   );

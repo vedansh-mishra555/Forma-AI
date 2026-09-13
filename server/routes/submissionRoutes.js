@@ -62,7 +62,84 @@ router.post("/", async (req, res) => {
 });
 
 // =========================
-// DELETE A SUBMISSION
+// GET SINGLE SUBMISSION
+// =========================
+
+router.get("/:id", async (req, res) => {
+  try {
+    const submission = await Submission.findById(
+      req.params.id
+    );
+
+    if (!submission) {
+      return res.status(404).json({
+        success: false,
+        message: "Submission not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      submission
+    });
+  } catch (error) {
+    console.error("Fetch submission error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch submission"
+    });
+  }
+});
+
+// =========================
+// UPDATE SUBMISSION
+// =========================
+
+router.put("/:id", async (req, res) => {
+  try {
+    const { data } = req.body;
+
+    if (!data) {
+      return res.status(400).json({
+        success: false,
+        message: "Submission data is required"
+      });
+    }
+
+    const submission = await Submission.findByIdAndUpdate(
+      req.params.id,
+      { data },
+      {
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!submission) {
+      return res.status(404).json({
+        success: false,
+        message: "Submission not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Submission updated successfully",
+      submission
+    });
+  } catch (error) {
+    console.error("Update submission error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to update submission"
+    });
+  }
+});
+
+// =========================
+// DELETE SUBMISSION
 // =========================
 
 router.delete("/:id", async (req, res) => {
