@@ -3,23 +3,39 @@ const cors = require("cors");
 require("dotenv").config();
 
 const connectDB = require("./config/db");
-const submissionRoutes = require("./routes/submissionRoutes");
 
 const formRoutes = require("./routes/formRoutes");
 const aiRoutes = require("./routes/aiRoutes");
+const submissionRoutes = require("./routes/submissionRoutes");
+const analysisRoutes = require("./routes/analysisRoutes");
 
 const app = express();
 
-// Connect MongoDB
+// =========================
+// CONNECT MONGODB
+// =========================
+
 connectDB();
+
+// =========================
+// MIDDLEWARE
+// =========================
 
 app.use(cors());
 app.use(express.json());
 
-// Routes
+// =========================
+// ROUTES
+// =========================
+
 app.use("/api/forms", formRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/submissions", submissionRoutes);
+app.use("/api/analysis", analysisRoutes);
+
+// =========================
+// HEALTH CHECK
+// =========================
 
 app.get("/api/health", (req, res) => {
   res.json({
@@ -27,6 +43,10 @@ app.get("/api/health", (req, res) => {
     message: "Forma AI Backend Running"
   });
 });
+
+// =========================
+// START SERVER
+// =========================
 
 const PORT = process.env.PORT || 5000;
 

@@ -1,39 +1,72 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+
 * {
   box-sizing: border-box;
 }
 
 html {
   min-height: 100%;
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
 
-  font-family:
-    Inter,
-    Arial,
-    sans-serif;
+  font-family: "Inter", Arial, Helvetica, sans-serif;
+
+  color: #ffffff;
 
   background:
     radial-gradient(
-      circle at 15% 20%,
-      rgba(37, 99, 235, 0.25),
+      circle at 50% -10%,
+      rgba(255, 193, 7, 0.16),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 100% 50%,
+      rgba(255, 193, 7, 0.06),
       transparent 30%
     ),
     radial-gradient(
-      circle at 85% 80%,
-      rgba(6, 182, 212, 0.2),
+      circle at 0% 100%,
+      rgba(255, 193, 7, 0.05),
       transparent 30%
     ),
+    #000000;
+
+  overflow-x: hidden;
+}
+
+/* Premium background grid */
+
+body::before {
+  content: "";
+
+  position: fixed;
+  inset: 0;
+
+  background-image:
     linear-gradient(
-      135deg,
-      #07111f,
-      #0f172a 50%,
-      #102a43
+      rgba(255, 255, 255, 0.018) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.018) 1px,
+      transparent 1px
     );
 
-  color: white;
+  background-size: 50px 50px;
+
+  mask-image: linear-gradient(
+    to bottom,
+    black,
+    transparent 95%
+  );
+
+  pointer-events: none;
+  z-index: -1;
 }
 
 button,
@@ -41,4 +74,34 @@ input,
 select,
 textarea {
   font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: #ffc107;
+  color: #000000;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    #ffd54f,
+    #b88600
+  );
+
+  border-radius: 20px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ffc107;
 }
