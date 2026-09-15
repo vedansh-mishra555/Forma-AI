@@ -640,6 +640,56 @@ function App() {
     ).length;
 
   /* =====================================================
+     ADVANCED CLAIM ANALYTICS
+  ===================================================== */
+
+  const analytics = useMemo(() => {
+    const total = submissions.length;
+
+    const accidents = submissions.filter(
+      (submission) =>
+        submission.data?.incidentType === "accident"
+    ).length;
+
+    const thefts = submissions.filter(
+      (submission) =>
+        submission.data?.incidentType === "theft"
+    ).length;
+
+    const animalCollisions = submissions.filter(
+      (submission) =>
+        submission.data?.incidentType === "animal_collision"
+    ).length;
+
+    /*
+      AI analysis is currently held in React state.
+      Therefore this count represents the currently
+      analyzed claim, not permanently stored analyses.
+    */
+    const analyzed = analysis ? 1 : 0;
+
+    const highPriority =
+      analysis?.priority === "High" ? 1 : 0;
+
+    const mediumPriority =
+      analysis?.priority === "Medium" ? 1 : 0;
+
+    const lowPriority =
+      analysis?.priority === "Low" ? 1 : 0;
+
+    return {
+      total,
+      accidents,
+      thefts,
+      animalCollisions,
+      analyzed,
+      highPriority,
+      mediumPriority,
+      lowPriority
+    };
+  }, [submissions, analysis]);
+
+  /* =====================================================
      CSV EXPORT
   ===================================================== */
 
@@ -1005,6 +1055,129 @@ function App() {
                 {animalClaims}
               </strong>
             </div>
+          </div>
+
+        </div>
+
+        {/* ADVANCED CLAIM ANALYTICS */}
+
+        <div className="analytics-section">
+
+          <div className="analytics-title">
+            <div>
+              <span>📊</span>
+              <h2>Claim Analytics</h2>
+            </div>
+
+            <p>
+              Overview of your insurance claim data
+            </p>
+          </div>
+
+          <div className="analytics-grid">
+
+            <div className="analytics-card">
+              <span className="analytics-icon">🚗</span>
+
+              <div>
+                <h3>Accident Claims</h3>
+                <strong>{analytics.accidents}</strong>
+              </div>
+            </div>
+
+            <div className="analytics-card">
+              <span className="analytics-icon">🚨</span>
+
+              <div>
+                <h3>Theft Claims</h3>
+                <strong>{analytics.thefts}</strong>
+              </div>
+            </div>
+
+            <div className="analytics-card">
+              <span className="analytics-icon">🐕</span>
+
+              <div>
+                <h3>Animal Collision</h3>
+                <strong>{analytics.animalCollisions}</strong>
+              </div>
+            </div>
+
+            <div className="analytics-card">
+              <span className="analytics-icon">🤖</span>
+
+              <div>
+                <h3>AI Analyzed</h3>
+                <strong>{analytics.analyzed}</strong>
+              </div>
+            </div>
+
+          </div>
+
+          <div className="priority-panel">
+
+            <h3>AI Priority Distribution</h3>
+
+            <div className="priority-item">
+
+              <div>
+                <span>🔴 High</span>
+                <strong>{analytics.highPriority}</strong>
+              </div>
+
+              <div className="priority-bar">
+                <span
+                  style={{
+                    width:
+                      analytics.total > 0
+                        ? `${(analytics.highPriority / analytics.total) * 100}%`
+                        : "0%"
+                  }}
+                />
+              </div>
+
+            </div>
+
+            <div className="priority-item">
+
+              <div>
+                <span>🟡 Medium</span>
+                <strong>{analytics.mediumPriority}</strong>
+              </div>
+
+              <div className="priority-bar">
+                <span
+                  style={{
+                    width:
+                      analytics.total > 0
+                        ? `${(analytics.mediumPriority / analytics.total) * 100}%`
+                        : "0%"
+                  }}
+                />
+              </div>
+
+            </div>
+
+            <div className="priority-item">
+
+              <div>
+                <span>🟢 Low</span>
+                <strong>{analytics.lowPriority}</strong>
+              </div>
+
+              <div className="priority-bar">
+                <span
+                  style={{
+                    width:
+                      analytics.total > 0
+                        ? `${(analytics.lowPriority / analytics.total) * 100}%`
+                        : "0%"
+                  }}
+                />
+              </div>
+
+            </div>
+
           </div>
 
         </div>

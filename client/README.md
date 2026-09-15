@@ -1,16 +1,120 @@
-# React + Vite
+# 🤖 Forma AI — AI-Augmented Dynamic Form Engine
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Forma AI is a full-stack AI-powered dynamic form engine that allows users to fill, validate, save, edit, search, filter, and analyze forms using AI.
 
-Currently, two official plugins are available:
+The project uses an Insurance Claim Form as the primary use case.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🚀 Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 📝 Dynamic Forms
+- Dynamic form rendering from a JSON schema
+- Multiple field types
+- Required-field validation
+- Minimum-length validation
+- Pattern validation
+- Conditional fields using `showIf`
 
-## Expanding the ESLint configuration
+### 🤖 AI Magic Input
+Users can describe their information naturally, for example:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+> My name is Vedansh Mishra, my email is vedansh@gmail.com, my car is Honda City and I met with an accident.
+
+Forma AI extracts structured information from the text and automatically fills the form.
+
+### 🔍 AI Claim Analysis
+The system can analyze submitted insurance claims and provide:
+
+- Completeness score
+- Priority
+- Missing information
+- Issues
+- Recommendation
+
+### 📊 Claim Dashboard
+- Total submissions
+- Accident claims
+- Theft claims
+- Animal collision claims
+- Submission history
+
+### 🔎 Search & Filtering
+- Search submissions
+- Filter by incident type
+- Sort by newest/oldest
+- Result count
+
+### 💾 Submission Management
+- Create submissions
+- View submissions
+- Edit submissions
+- Delete submissions
+- Refresh submission history
+
+### 📥 Export & Reports
+- Export submissions as CSV
+- Print claim reports
+
+### 💡 User Experience
+- AI preview before applying extracted data
+- Auto-save form draft
+- Clear form option
+- Toast notifications
+- Responsive UI
+- Premium dark/gold interface
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+- React
+- Vite
+- Axios
+- React Hook Form
+- CSS
+
+### Backend
+- Node.js
+- Express.js
+- MongoDB
+- Mongoose
+- CORS
+- dotenv
+
+### AI
+- Google Gemini API
+
+---
+
+## 📁 Project Structure
+
+```text
+Forma-AI/
+│
+├── client/
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── App.css
+│   │   ├── api.js
+│   │   └── main.jsx
+│   ├── package.json
+│   └── ...
+│
+├── server/
+│   ├── config/
+│   │   └── db.js
+│   ├── models/
+│   │   └── Submission.js
+│   ├── routes/
+│   │   ├── formRoutes.js
+│   │   ├── aiRoutes.js
+│   │   ├── submissionRoutes.js
+│   │   └── analysisRoutes.js
+│   ├── index.js
+│   ├── package.json
+│   └── .env
+│
+├── .gitignore
+└── README.md
