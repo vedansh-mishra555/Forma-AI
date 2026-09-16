@@ -10,6 +10,40 @@ const submissionSchema = new mongoose.Schema(
     data: {
       type: mongoose.Schema.Types.Mixed,
       required: true
+    },
+
+    // AI Claim Analysis
+    analysis: {
+      completenessScore: {
+        type: Number,
+        default: null
+      },
+
+      priority: {
+        type: String,
+        enum: ["High", "Medium", "Low"],
+        default: null
+      },
+
+      missingInformation: {
+        type: [String],
+        default: []
+      },
+
+      issues: {
+        type: [String],
+        default: []
+      },
+
+      recommendation: {
+        type: String,
+        default: ""
+      },
+
+      analyzedAt: {
+        type: Date,
+        default: null
+      }
     }
   },
   {
@@ -17,4 +51,7 @@ const submissionSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Submission", submissionSchema);
+module.exports = mongoose.model(
+  "Submission",
+  submissionSchema
+);

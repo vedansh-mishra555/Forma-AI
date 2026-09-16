@@ -1,23 +1,22 @@
 const express = require("express");
-const { GoogleGenAI } = require("@google/genai");
 const Submission = require("../models/Submission");
 
 const router = express.Router();
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY
-});
 
-// =========================
-// AI CLAIM ANALYSIS
-// =========================
+// =====================================================
+// POST /api/analysis/:submissionId
+// Analyze and save claim analysis
+// =====================================================
 
 router.post("/:submissionId", async (req, res) => {
   try {
+
     const { submissionId } = req.params;
 
-    // Find submission from MongoDB
-    const submission = await Submission.findById(submissionId);
+    // Find submission
+    const submission =
+      await Submission.findById(submissionId);
 
     if (!submission) {
       return res.status(404).json({
@@ -26,119 +25,165 @@ router.post("/:submissionId", async (req, res) => {
       });
     }
 
-    console.log("Analyzing submission:", submissionId);
 
-    // Send submission data to Gemini
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
+    // Get submitted data
+    const data = submission.data || {};
 
-      contents: `
-You are an AI insurance claim quality analyzer.
 
-Analyze the following insurance claim submission.
+    // =================================================
+    // CHECK MISSING INFORMATION
+    // =================================================
 
-Your job is to:
+    const missingInformation = [];
 
-1. Calculate a completeness score from 0 to 100.
-2. Identify missing information.
-3. Identify possible inconsistencies or issues.
-4. Assign a priority:
-   - Low
-   - Medium
-   - High
-5. Give a short recommendation.
+    if (!data.fullName) {
+      missingInformation.push("Full Name");
+    }
 
-Rules:
-- Do not invent information.
-- Only analyze the information provided.
-- Be concise and professional.
-- If there are no issues, return an empty array for issues.
-- If there is no missing information, return an empty array for missingInformation.
+    if (!data.email) {
+      missingInformation.push("Email Address");
+    }
 
-Return ONLY valid JSON.
+    if (!data.vehicle) {
+      missingInformation.push("Vehicle Name");
+    }
 
-Required JSON structure:
+    if (!data.incidentType) {
+      missingInformation.push("Incident Type");
+    }
 
-{
-  "completenessScore": 0,
-  "priority": "Low",
-  "missingInformation": [],
-  "issues": [],
-  "recommendation": ""
-}
+    if (!data.damageType) {
+      missingInformation.push("Damage Type");
+    }
 
-Insurance Claim Submission:
+    if (!data.policeReport) {
+      missingInformation.push("Police Report");
+    }
 
-${JSON.stringify(submission.data, null, 2)}
-`,
+    if (
+      data.policeReport === "yes" &&
+      !data.policeReportNumber
+    ) {
+      missingInformation.push(
+        "Police Report Number"
+      );
+    }
 
-      config: {
-        responseMimeType: "application/json",
 
-        responseSchema: {
-          type: "object",
+    // =================================================
+    // COMPLETENESS SCORE
+    // =================================================
 
-          properties: {
-            completenessScore: {
-              type: "number"
-            },
+    const totalRequiredFields = 7;
 
-            priority: {
-              type: "string"
-            },
+    const completedFields =
+      totalRequiredFields -
+      missingInformation.length;
 
-            missingInformation: {
-              type: "array",
-              items: {
-                type: "string"
-              }
-            },
+    let completenessScore = Math.round(
+      (completedFields / totalRequiredFields) *
+        100
+    );
 
-            issues: {
-              type: "array",
-              items: {
-                type: "string"
-              }
-            },
+    if (completenessScore < 0) {
+      completenessScore = 0;
+    }
 
-            recommendation: {
-              type: "string"
-            }
-          },
 
-          required: [
-            "completenessScore",
-            "priority",
-            "missingInformation",
-            "issues",
-            "recommendation"
-          ]
-        }
-      }
-    });
+    // =================================================
+    // PRIORITY
+    // =================================================
 
-    console.log("AI analysis received");
+    let priority = "Low";
 
-    const analysis = JSON.parse(response.text);
+    if (completenessScore < 50) {
+      priority = "High";
+    } else if (completenessScore < 80) {
+      priority = "Medium";
+    }
 
-    // Send analysis to frontend
+
+    // =================================================
+    // ISSUES
+    // =================================================
+
+    const issues = [];
+
+    if (
+      data.incidentType === "accident" &&
+      !data.policeReport
+    ) {
+      issues.push(
+        "Police report information is missing for the accident claim."
+      );
+    }
+
+    if (
+      data.policeReport === "yes" &&
+      !data.policeReportNumber
+    ) {
+      issues.push(
+        "Police report number is missing."
+      );
+    }
+
+
+    // =================================================
+    // RECOMMENDATION
+    // =================================================
+
+    let recommendation =
+      "Claim information is sufficient for initial processing.";
+
+    if (missingInformation.length > 0) {
+      recommendation =
+        `Request the following information from the claimant: ${missingInformation.join(
+          ", "
+        )}.`;
+    }
+
+
+    // =================================================
+    // SAVE ANALYSIS
+    // =================================================
+
+    submission.analysis = {
+      completenessScore,
+      priority,
+      missingInformation,
+      issues,
+      recommendation,
+      analyzedAt: new Date()
+    };
+
+    await submission.save();
+
+
+    // =================================================
+    // RESPONSE
+    // =================================================
+
     res.json({
       success: true,
       message: "Submission analyzed successfully",
-      analysis
+      analysis: submission.analysis
     });
 
   } catch (error) {
-    console.error("========== ANALYSIS ERROR ==========");
-    console.error(error);
-    console.error("====================================");
+
+    console.error(
+      "❌ Claim Analysis Error:",
+      error
+    );
 
     res.status(500).json({
       success: false,
       message: "Failed to analyze submission",
       error: error.message
     });
+
   }
 });
+
 
 module.exports = router;

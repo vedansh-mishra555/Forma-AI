@@ -235,7 +235,15 @@ function App() {
         response.data.submission.data
       );
 
-      setAnalysis(null);
+      // Load previously saved AI analysis from MongoDB
+      if (response.data.submission.analysis) {
+        setAnalysis({
+          submissionId: id,
+          ...response.data.submission.analysis
+        });
+      } else {
+        setAnalysis(null);
+      }
     } catch (error) {
       console.error(
         "Failed to load submission:",
@@ -661,21 +669,29 @@ function App() {
         submission.data?.incidentType === "animal_collision"
     ).length;
 
-    /*
-      AI analysis is currently held in React state.
-      Therefore this count represents the currently
-      analyzed claim, not permanently stored analyses.
-    */
-    const analyzed = analysis ? 1 : 0;
+    // Count all analyses saved in MongoDB
+    const analyzedSubmissions = submissions.filter(
+      (submission) =>
+        submission.analysis &&
+        typeof submission.analysis.completenessScore === "number"
+    );
 
-    const highPriority =
-      analysis?.priority === "High" ? 1 : 0;
+    const analyzed = analyzedSubmissions.length;
 
-    const mediumPriority =
-      analysis?.priority === "Medium" ? 1 : 0;
+    const highPriority = analyzedSubmissions.filter(
+      (submission) =>
+        submission.analysis?.priority === "High"
+    ).length;
 
-    const lowPriority =
-      analysis?.priority === "Low" ? 1 : 0;
+    const mediumPriority = analyzedSubmissions.filter(
+      (submission) =>
+        submission.analysis?.priority === "Medium"
+    ).length;
+
+    const lowPriority = analyzedSubmissions.filter(
+      (submission) =>
+        submission.analysis?.priority === "Low"
+    ).length;
 
     return {
       total,
@@ -687,7 +703,7 @@ function App() {
       mediumPriority,
       lowPriority
     };
-  }, [submissions, analysis]);
+  }, [submissions]);
 
   /* =====================================================
      CSV EXPORT
