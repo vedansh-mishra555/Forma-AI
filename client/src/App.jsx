@@ -693,6 +693,23 @@ function App() {
         submission.analysis?.priority === "Low"
     ).length;
 
+    /* Average AI completeness score */
+    const averageCompleteness =
+      analyzed > 0
+        ? Math.round(
+            analyzedSubmissions.reduce(
+              (sum, submission) =>
+                sum +
+                submission.analysis.completenessScore,
+              0
+            ) / analyzed
+          )
+        : 0;
+
+    /* Claims requiring attention */
+    const claimsNeedingAttention =
+      highPriority + mediumPriority;
+
     return {
       total,
       accidents,
@@ -701,7 +718,9 @@ function App() {
       analyzed,
       highPriority,
       mediumPriority,
-      lowPriority
+      lowPriority,
+      averageCompleteness,
+      claimsNeedingAttention
     };
   }, [submissions]);
 
@@ -1092,6 +1111,7 @@ function App() {
 
           <div className="analytics-grid">
 
+            {/* Accident Claims */}
             <div className="analytics-card">
               <span className="analytics-icon">🚗</span>
 
@@ -1101,6 +1121,7 @@ function App() {
               </div>
             </div>
 
+            {/* Theft Claims */}
             <div className="analytics-card">
               <span className="analytics-icon">🚨</span>
 
@@ -1110,6 +1131,7 @@ function App() {
               </div>
             </div>
 
+            {/* Animal Collision */}
             <div className="analytics-card">
               <span className="analytics-icon">🐕</span>
 
@@ -1119,12 +1141,33 @@ function App() {
               </div>
             </div>
 
+            {/* AI Analyzed */}
             <div className="analytics-card">
               <span className="analytics-icon">🤖</span>
 
               <div>
                 <h3>AI Analyzed</h3>
                 <strong>{analytics.analyzed}</strong>
+              </div>
+            </div>
+
+            {/* Average AI Completeness */}
+            <div className="analytics-card">
+              <span className="analytics-icon">📈</span>
+
+              <div>
+                <h3>Avg. AI Completeness</h3>
+                <strong>{analytics.averageCompleteness}%</strong>
+              </div>
+            </div>
+
+            {/* Claims Needing Attention */}
+            <div className="analytics-card">
+              <span className="analytics-icon">⚠️</span>
+
+              <div>
+                <h3>Needs Attention</h3>
+                <strong>{analytics.claimsNeedingAttention}</strong>
               </div>
             </div>
 
@@ -1145,8 +1188,8 @@ function App() {
                 <span
                   style={{
                     width:
-                      analytics.total > 0
-                        ? `${(analytics.highPriority / analytics.total) * 100}%`
+                      analytics.analyzed > 0
+                        ? `${(analytics.highPriority / analytics.analyzed) * 100}%`
                         : "0%"
                   }}
                 />
@@ -1165,8 +1208,8 @@ function App() {
                 <span
                   style={{
                     width:
-                      analytics.total > 0
-                        ? `${(analytics.mediumPriority / analytics.total) * 100}%`
+                      analytics.analyzed > 0
+                        ? `${(analytics.mediumPriority / analytics.analyzed) * 100}%`
                         : "0%"
                   }}
                 />
@@ -1185,8 +1228,8 @@ function App() {
                 <span
                   style={{
                     width:
-                      analytics.total > 0
-                        ? `${(analytics.lowPriority / analytics.total) * 100}%`
+                      analytics.analyzed > 0
+                        ? `${(analytics.lowPriority / analytics.analyzed) * 100}%`
                         : "0%"
                   }}
                 />
