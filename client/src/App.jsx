@@ -4,6 +4,10 @@ import API from "./api";
 import "./App.css";
 
 function App() {
+  /* =====================================================
+     FORM
+  ===================================================== */
+
   const [formSchema, setFormSchema] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -16,7 +20,7 @@ function App() {
   const [aiPreview, setAiPreview] = useState(null);
 
   /* =====================================================
-     FORM SUBMISSION
+     SUBMISSION
   ===================================================== */
 
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -53,11 +57,8 @@ function App() {
   ===================================================== */
 
   const [searchText, setSearchText] = useState("");
-  const [incidentFilter, setIncidentFilter] =
-    useState("all");
-
-  const [sortOrder, setSortOrder] =
-    useState("newest");
+  const [incidentFilter, setIncidentFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState("newest");
 
   /* =====================================================
      TOAST
@@ -75,17 +76,17 @@ function App() {
     handleSubmit,
     setValue,
     reset,
-    formState: { errors }
+    formState: { errors },
   } = useForm();
 
   /* =====================================================
-     TOAST FUNCTION
+     TOAST
   ===================================================== */
 
   const showToast = (message, type = "success") => {
     setToast({
       message,
-      type
+      type,
     });
 
     setTimeout(() => {
@@ -98,24 +99,26 @@ function App() {
   ===================================================== */
 
   useEffect(() => {
-    API.get("/forms/insurance-claim")
-      .then((response) => {
-        setFormSchema(response.data.form);
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error(
-          "Form loading failed:",
-          error
+    const loadForm = async () => {
+      try {
+        const response = await API.get(
+          "/forms/insurance-claim"
         );
 
-        setLoading(false);
+        setFormSchema(response.data.form);
+      } catch (error) {
+        console.error("Form loading failed:", error);
 
         showToast(
           "Failed to load insurance form",
           "error"
         );
-      });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadForm();
   }, []);
 
   /* =====================================================
@@ -158,7 +161,10 @@ function App() {
 
   useEffect(() => {
     const hasData = Object.values(formValues).some(
-      (value) => value
+      (value) =>
+        value !== undefined &&
+        value !== null &&
+        String(value).trim() !== ""
     );
 
     if (hasData) {
@@ -184,7 +190,11 @@ function App() {
 
       Object.entries(draft).forEach(
         ([field, value]) => {
-          if (value) {
+          if (
+            value !== undefined &&
+            value !== null &&
+            value !== ""
+          ) {
             setValue(field, value);
           }
         }
@@ -206,6 +216,7 @@ function App() {
 
     setMagicText("");
     setAiPreview(null);
+    setSubmitSuccess(false);
 
     localStorage.removeItem(
       "forma-ai-draft"
@@ -227,19 +238,19 @@ function App() {
         `/submissions/${id}`
       );
 
-      setSelectedSubmission(
-        response.data.submission
-      );
+      const submission =
+        response.data.submission;
+
+      setSelectedSubmission(submission);
 
       setEditData(
-        response.data.submission.data
+        submission.data || {}
       );
 
-      // Load previously saved AI analysis from MongoDB
-      if (response.data.submission.analysis) {
+      if (submission.analysis) {
         setAnalysis({
           submissionId: id,
-          ...response.data.submission.analysis
+          ...submission.analysis,
         });
       } else {
         setAnalysis(null);
@@ -270,7 +281,7 @@ function App() {
       await API.put(
         `/submissions/${selectedSubmission._id}`,
         {
-          data: editData
+          data: editData,
         }
       );
 
@@ -323,16 +334,14 @@ function App() {
       );
 
       if (
-        selectedSubmission &&
-        selectedSubmission._id === id
+        selectedSubmission?._id === id
       ) {
         setSelectedSubmission(null);
         setEditData({});
       }
 
       if (
-        analysis &&
-        analysis.submissionId === id
+        analysis?.submissionId === id
       ) {
         setAnalysis(null);
       }
@@ -369,10 +378,29 @@ function App() {
       );
 
       if (response.data.success) {
-        setAnalysis({
+        const newAnalysis = {
           submissionId: id,
-          ...response.data.analysis
-        });
+          ...response.data.analysis,
+        };
+
+        setAnalysis(newAnalysis);
+
+        /*
+         * Update local submission state immediately
+         * so dashboard analytics update without
+         * requiring a manual refresh.
+         */
+        setSubmissions((current) =>
+          current.map((submission) =>
+            submission._id === id
+              ? {
+                  ...submission,
+                  analysis:
+                    response.data.analysis,
+                }
+              : submission
+          )
+        );
 
         showToast(
           "AI analysis completed!",
@@ -417,7 +445,7 @@ function App() {
       const response = await API.post(
         "/ai/magic-input",
         {
-          text: magicText
+          text: magicText,
         }
       );
 
@@ -436,7 +464,8 @@ function App() {
       );
 
       showToast(
-        "AI processing failed",
+        error.response?.data?.message ||
+          "AI processing failed",
         "error"
       );
     } finally {
@@ -451,13 +480,17 @@ function App() {
   const applyAIData = () => {
     if (!aiPreview) return;
 
-    Object.keys(aiPreview).forEach(
-      (field) => {
-        if (aiPreview[field]) {
-          setValue(
-            field,
-            aiPreview[field]
-          );
+    Object.entries(aiPreview).forEach(
+      ([field, value]) => {
+        if (
+          value !== undefined &&
+          value !== null &&
+          value !== ""
+        ) {
+          setValue(field, value, {
+            shouldValidate: true,
+            shouldDirty: true,
+          });
         }
       }
     );
@@ -475,6 +508,8 @@ function App() {
   ===================================================== */
 
   const onSubmit = async (data) => {
+    if (!formSchema) return;
+
     try {
       setSubmitLoading(true);
       setSubmitSuccess(false);
@@ -483,7 +518,7 @@ function App() {
         "/submissions",
         {
           formId: formSchema.formId,
-          data
+          data,
         }
       );
 
@@ -511,7 +546,8 @@ function App() {
       );
 
       showToast(
-        "Failed to submit claim",
+        error.response?.data?.message ||
+          "Failed to submit claim",
         "error"
       );
     } finally {
@@ -538,7 +574,7 @@ function App() {
   };
 
   /* =====================================================
-     SEARCH + FILTER
+     SEARCH + FILTER + SORT
   ===================================================== */
 
   const filteredSubmissions = useMemo(() => {
@@ -548,7 +584,7 @@ function App() {
 
     if (searchText.trim()) {
       const search =
-        searchText.toLowerCase();
+        searchText.toLowerCase().trim();
 
       result = result.filter(
         (submission) => {
@@ -573,6 +609,11 @@ function App() {
               .includes(search) ||
             String(
               data.incidentType || ""
+            )
+              .toLowerCase()
+              .includes(search) ||
+            String(
+              data.damageType || ""
             )
               .toLowerCase()
               .includes(search)
@@ -613,7 +654,7 @@ function App() {
     submissions,
     searchText,
     incidentFilter,
-    sortOrder
+    sortOrder,
   ]);
 
   /* =====================================================
@@ -648,67 +689,85 @@ function App() {
     ).length;
 
   /* =====================================================
-     ADVANCED CLAIM ANALYTICS
+     ADVANCED ANALYTICS
   ===================================================== */
 
   const analytics = useMemo(() => {
     const total = submissions.length;
 
-    const accidents = submissions.filter(
-      (submission) =>
-        submission.data?.incidentType === "accident"
-    ).length;
+    const accidents =
+      submissions.filter(
+        (submission) =>
+          submission.data
+            ?.incidentType ===
+          "accident"
+      ).length;
 
-    const thefts = submissions.filter(
-      (submission) =>
-        submission.data?.incidentType === "theft"
-    ).length;
+    const thefts =
+      submissions.filter(
+        (submission) =>
+          submission.data
+            ?.incidentType ===
+          "theft"
+      ).length;
 
-    const animalCollisions = submissions.filter(
-      (submission) =>
-        submission.data?.incidentType === "animal_collision"
-    ).length;
+    const animalCollisions =
+      submissions.filter(
+        (submission) =>
+          submission.data
+            ?.incidentType ===
+          "animal_collision"
+      ).length;
 
-    // Count all analyses saved in MongoDB
-    const analyzedSubmissions = submissions.filter(
-      (submission) =>
-        submission.analysis &&
-        typeof submission.analysis.completenessScore === "number"
-    );
+    const analyzedSubmissions =
+      submissions.filter(
+        (submission) =>
+          submission.analysis &&
+          typeof submission.analysis
+            .completenessScore ===
+            "number"
+      );
 
-    const analyzed = analyzedSubmissions.length;
+    const analyzed =
+      analyzedSubmissions.length;
 
-    const highPriority = analyzedSubmissions.filter(
-      (submission) =>
-        submission.analysis?.priority === "High"
-    ).length;
+    const highPriority =
+      analyzedSubmissions.filter(
+        (submission) =>
+          submission.analysis
+            ?.priority === "High"
+      ).length;
 
-    const mediumPriority = analyzedSubmissions.filter(
-      (submission) =>
-        submission.analysis?.priority === "Medium"
-    ).length;
+    const mediumPriority =
+      analyzedSubmissions.filter(
+        (submission) =>
+          submission.analysis
+            ?.priority === "Medium"
+      ).length;
 
-    const lowPriority = analyzedSubmissions.filter(
-      (submission) =>
-        submission.analysis?.priority === "Low"
-    ).length;
+    const lowPriority =
+      analyzedSubmissions.filter(
+        (submission) =>
+          submission.analysis
+            ?.priority === "Low"
+      ).length;
 
-    /* Average AI completeness score */
     const averageCompleteness =
       analyzed > 0
         ? Math.round(
             analyzedSubmissions.reduce(
               (sum, submission) =>
                 sum +
-                submission.analysis.completenessScore,
+                submission.analysis
+                  .completenessScore,
               0
             ) / analyzed
           )
         : 0;
 
-    /* Claims requiring attention */
     const claimsNeedingAttention =
-      highPriority + mediumPriority;
+      highPriority +
+      mediumPriority;
 
     return {
       total,
@@ -720,7 +779,7 @@ function App() {
       mediumPriority,
       lowPriority,
       averageCompleteness,
-      claimsNeedingAttention
+      claimsNeedingAttention,
     };
   }, [submissions]);
 
@@ -745,7 +804,8 @@ function App() {
       "Incident Type",
       "Damage Type",
       "Police Report",
-      "Created At"
+      "Police Report Number",
+      "Created At",
     ];
 
     const rows = submissions.map(
@@ -760,25 +820,28 @@ function App() {
           data.incidentType || "",
           data.damageType || "",
           data.policeReport || "",
+          data.policeReportNumber || "",
           submission.createdAt
             ? new Date(
                 submission.createdAt
               ).toLocaleString()
-            : ""
+            : "",
         ];
       }
     );
 
     const csvContent = [
       headers,
-      ...rows
+      ...rows,
     ]
       .map((row) =>
         row
           .map(
             (value) =>
-              `"${String(value)
-                .replace(/"/g, '""')}"`
+              `"${String(value).replace(
+                /"/g,
+                '""'
+              )}"`
           )
           .join(",")
       )
@@ -787,7 +850,7 @@ function App() {
     const blob = new Blob(
       [csvContent],
       {
-        type: "text/csv;charset=utf-8;"
+        type: "text/csv;charset=utf-8;",
       }
     );
 
@@ -798,7 +861,6 @@ function App() {
       document.createElement("a");
 
     link.href = url;
-
     link.download =
       "forma-ai-claims.csv";
 
@@ -840,6 +902,15 @@ function App() {
       return;
     }
 
+    const escapeHTML = (value) => {
+      return String(value || "-")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    };
+
     printWindow.document.write(`
       <html>
         <head>
@@ -850,10 +921,13 @@ function App() {
               font-family: Arial, sans-serif;
               padding: 40px;
               color: #111;
+              max-width: 900px;
+              margin: auto;
             }
 
             h1 {
               color: #b88600;
+              margin-bottom: 5px;
             }
 
             h2 {
@@ -864,6 +938,7 @@ function App() {
             .row {
               display: flex;
               justify-content: space-between;
+              gap: 30px;
               padding: 12px 0;
               border-bottom: 1px solid #eee;
             }
@@ -872,10 +947,15 @@ function App() {
               font-weight: bold;
             }
 
+            .value {
+              text-align: right;
+            }
+
             .footer {
               margin-top: 40px;
               color: #777;
               font-size: 12px;
+              text-align: center;
             }
           </style>
         </head>
@@ -884,51 +964,77 @@ function App() {
 
           <h1>Forma AI</h1>
 
+          <p>
+            AI-powered insurance claim management
+          </p>
+
           <h2>Insurance Claim Report</h2>
 
           <div class="row">
             <span class="label">Name</span>
-            <span>${data.fullName || "-"}</span>
+            <span class="value">
+              ${escapeHTML(data.fullName)}
+            </span>
           </div>
 
           <div class="row">
             <span class="label">Email</span>
-            <span>${data.email || "-"}</span>
+            <span class="value">
+              ${escapeHTML(data.email)}
+            </span>
           </div>
 
           <div class="row">
             <span class="label">Vehicle</span>
-            <span>${data.vehicle || "-"}</span>
+            <span class="value">
+              ${escapeHTML(data.vehicle)}
+            </span>
           </div>
 
           <div class="row">
             <span class="label">Incident</span>
-            <span>${data.incidentType || "-"}</span>
+            <span class="value">
+              ${escapeHTML(data.incidentType)}
+            </span>
           </div>
 
           <div class="row">
             <span class="label">Damage</span>
-            <span>${data.damageType || "-"}</span>
+            <span class="value">
+              ${escapeHTML(data.damageType)}
+            </span>
           </div>
 
           <div class="row">
             <span class="label">Police Report</span>
-            <span>${data.policeReport || "-"}</span>
+            <span class="value">
+              ${escapeHTML(data.policeReport)}
+            </span>
           </div>
 
           <div class="row">
-            <span class="label">Police Report Number</span>
-            <span>${data.policeReportNumber || "-"}</span>
+            <span class="label">
+              Police Report Number
+            </span>
+
+            <span class="value">
+              ${escapeHTML(
+                data.policeReportNumber
+              )}
+            </span>
           </div>
 
           <div class="row">
             <span class="label">Submitted</span>
-            <span>
+
+            <span class="value">
               ${
                 submission.createdAt
-                  ? new Date(
-                      submission.createdAt
-                    ).toLocaleString()
+                  ? escapeHTML(
+                      new Date(
+                        submission.createdAt
+                      ).toLocaleString()
+                    )
                   : "-"
               }
             </span>
@@ -939,7 +1045,7 @@ function App() {
           </div>
 
           <script>
-            window.onload = function() {
+            window.onload = function () {
               window.print();
             };
           </script>
@@ -982,15 +1088,19 @@ function App() {
   return (
     <div className="container">
 
-      {/* TOAST */}
+      {/* =================================================
+          TOAST
+      ================================================= */}
 
       {toast && (
         <div
           className={`toast toast-${toast.type}`}
         >
-          {toast.type === "success"
-            ? "✓"
-            : "!"}
+          <strong>
+            {toast.type === "success"
+              ? "✓"
+              : "!"}
+          </strong>
 
           <span>
             {toast.message}
@@ -998,9 +1108,11 @@ function App() {
         </div>
       )}
 
-      {/* BRAND */}
+      {/* =================================================
+          BRAND HEADER
+      ================================================= */}
 
-      <div className="brand-header">
+      <header className="brand-header">
 
         <div className="brand-icon">
           ✦
@@ -1016,13 +1128,16 @@ function App() {
           </p>
         </div>
 
-      </div>
+      </header>
 
-      {/* DASHBOARD */}
+      {/* =================================================
+          DASHBOARD
+      ================================================= */}
 
       <section className="dashboard">
 
         <div className="dashboard-header">
+
           <div>
             <h2>
               📊 Claim Dashboard
@@ -1032,6 +1147,7 @@ function App() {
               Overview of your insurance claims
             </p>
           </div>
+
         </div>
 
         <div className="stats-grid">
@@ -1094,94 +1210,146 @@ function App() {
 
         </div>
 
-        {/* ADVANCED CLAIM ANALYTICS */}
+        {/* =================================================
+            ADVANCED ANALYTICS
+        ================================================= */}
 
         <div className="analytics-section">
 
           <div className="analytics-title">
+
             <div>
               <span>📊</span>
-              <h2>Claim Analytics</h2>
+
+              <h2>
+                Claim Analytics
+              </h2>
             </div>
 
             <p>
               Overview of your insurance claim data
             </p>
+
           </div>
 
           <div className="analytics-grid">
 
-            {/* Accident Claims */}
             <div className="analytics-card">
-              <span className="analytics-icon">🚗</span>
+              <span className="analytics-icon">
+                🚗
+              </span>
 
               <div>
-                <h3>Accident Claims</h3>
-                <strong>{analytics.accidents}</strong>
+                <h3>
+                  Accident Claims
+                </h3>
+
+                <strong>
+                  {analytics.accidents}
+                </strong>
               </div>
             </div>
 
-            {/* Theft Claims */}
             <div className="analytics-card">
-              <span className="analytics-icon">🚨</span>
+              <span className="analytics-icon">
+                🚨
+              </span>
 
               <div>
-                <h3>Theft Claims</h3>
-                <strong>{analytics.thefts}</strong>
+                <h3>
+                  Theft Claims
+                </h3>
+
+                <strong>
+                  {analytics.thefts}
+                </strong>
               </div>
             </div>
 
-            {/* Animal Collision */}
             <div className="analytics-card">
-              <span className="analytics-icon">🐕</span>
+              <span className="analytics-icon">
+                🐕
+              </span>
 
               <div>
-                <h3>Animal Collision</h3>
-                <strong>{analytics.animalCollisions}</strong>
+                <h3>
+                  Animal Collision
+                </h3>
+
+                <strong>
+                  {analytics.animalCollisions}
+                </strong>
               </div>
             </div>
 
-            {/* AI Analyzed */}
             <div className="analytics-card">
-              <span className="analytics-icon">🤖</span>
+              <span className="analytics-icon">
+                🤖
+              </span>
 
               <div>
-                <h3>AI Analyzed</h3>
-                <strong>{analytics.analyzed}</strong>
+                <h3>
+                  AI Analyzed
+                </h3>
+
+                <strong>
+                  {analytics.analyzed}
+                </strong>
               </div>
             </div>
 
-            {/* Average AI Completeness */}
             <div className="analytics-card">
-              <span className="analytics-icon">📈</span>
+              <span className="analytics-icon">
+                📈
+              </span>
 
               <div>
-                <h3>Avg. AI Completeness</h3>
-                <strong>{analytics.averageCompleteness}%</strong>
+                <h3>
+                  Avg. AI Completeness
+                </h3>
+
+                <strong>
+                  {analytics.averageCompleteness}%
+                </strong>
               </div>
             </div>
 
-            {/* Claims Needing Attention */}
             <div className="analytics-card">
-              <span className="analytics-icon">⚠️</span>
+              <span className="analytics-icon">
+                ⚠️
+              </span>
 
               <div>
-                <h3>Needs Attention</h3>
-                <strong>{analytics.claimsNeedingAttention}</strong>
+                <h3>
+                  Needs Attention
+                </h3>
+
+                <strong>
+                  {analytics.claimsNeedingAttention}
+                </strong>
               </div>
             </div>
 
           </div>
 
+          {/* PRIORITY */}
+
           <div className="priority-panel">
 
-            <h3>AI Priority Distribution</h3>
+            <h3>
+              AI Priority Distribution
+            </h3>
 
             <div className="priority-item">
 
               <div>
-                <span>🔴 High</span>
-                <strong>{analytics.highPriority}</strong>
+                <span>
+                  🔴 High
+                </span>
+
+                <strong>
+                  {analytics.highPriority}
+                </strong>
               </div>
 
               <div className="priority-bar">
@@ -1189,8 +1357,12 @@ function App() {
                   style={{
                     width:
                       analytics.analyzed > 0
-                        ? `${(analytics.highPriority / analytics.analyzed) * 100}%`
-                        : "0%"
+                        ? `${
+                            (analytics.highPriority /
+                              analytics.analyzed) *
+                            100
+                          }%`
+                        : "0%",
                   }}
                 />
               </div>
@@ -1200,8 +1372,13 @@ function App() {
             <div className="priority-item">
 
               <div>
-                <span>🟡 Medium</span>
-                <strong>{analytics.mediumPriority}</strong>
+                <span>
+                  🟡 Medium
+                </span>
+
+                <strong>
+                  {analytics.mediumPriority}
+                </strong>
               </div>
 
               <div className="priority-bar">
@@ -1209,8 +1386,12 @@ function App() {
                   style={{
                     width:
                       analytics.analyzed > 0
-                        ? `${(analytics.mediumPriority / analytics.analyzed) * 100}%`
-                        : "0%"
+                        ? `${
+                            (analytics.mediumPriority /
+                              analytics.analyzed) *
+                            100
+                          }%`
+                        : "0%",
                   }}
                 />
               </div>
@@ -1220,8 +1401,13 @@ function App() {
             <div className="priority-item">
 
               <div>
-                <span>🟢 Low</span>
-                <strong>{analytics.lowPriority}</strong>
+                <span>
+                  🟢 Low
+                </span>
+
+                <strong>
+                  {analytics.lowPriority}
+                </strong>
               </div>
 
               <div className="priority-bar">
@@ -1229,8 +1415,12 @@ function App() {
                   style={{
                     width:
                       analytics.analyzed > 0
-                        ? `${(analytics.lowPriority / analytics.analyzed) * 100}%`
-                        : "0%"
+                        ? `${
+                            (analytics.lowPriority /
+                              analytics.analyzed) *
+                            100
+                          }%`
+                        : "0%",
                   }}
                 />
               </div>
@@ -1243,8 +1433,9 @@ function App() {
 
       </section>
 
-
-      {/* SUCCESS */}
+      {/* =================================================
+          SUCCESS
+      ================================================= */}
 
       {submitSuccess && (
         <div className="success-message">
@@ -1270,27 +1461,26 @@ function App() {
         </div>
       )}
 
+      {/* =================================================
+          MAGIC INPUT
+      ================================================= */}
 
-      {/* MAGIC INPUT */}
-
-      <div className="magic-box">
+      <section className="magic-box">
 
         <h2>
           ✨ Magic Input
         </h2>
 
         <p>
-          Describe your claim naturally
-          and AI will automatically extract
-          the information.
+          Describe your claim naturally and
+          AI will automatically extract the
+          information.
         </p>
 
         <textarea
           value={magicText}
           onChange={(e) =>
-            setMagicText(
-              e.target.value
-            )
+            setMagicText(e.target.value)
           }
           placeholder="Example: My name is Vedansh Mishra, my email is vedansh@gmail.com, my car is a Honda City and it was an accident."
         />
@@ -1305,48 +1495,49 @@ function App() {
             : "✨ Extract with AI"}
         </button>
 
-      </div>
+      </section>
 
-
-      {/* AI PREVIEW */}
+      {/* =================================================
+          AI PREVIEW
+      ================================================= */}
 
       {aiPreview && (
-        <div className="ai-preview">
+        <section className="ai-preview">
 
           <h2>
             🤖 AI Extracted Information
           </h2>
 
           <p>
-            Review the extracted
-            information before applying it.
+            Review the extracted information
+            before applying it.
           </p>
 
-          {Object.entries(
-            aiPreview
-          ).map(([field, value]) => (
-            <div
-              className="preview-row"
-              key={field}
-            >
+          {Object.entries(aiPreview).map(
+            ([field, value]) => (
+              <div
+                className="preview-row"
+                key={field}
+              >
 
-              <span className="preview-label">
-                {field}
-              </span>
+                <span className="preview-label">
+                  {field}
+                </span>
 
-              <input
-                value={value || ""}
-                onChange={(e) =>
-                  setAiPreview({
-                    ...aiPreview,
-                    [field]:
-                      e.target.value
-                  })
-                }
-              />
+                <input
+                  value={value || ""}
+                  onChange={(e) =>
+                    setAiPreview({
+                      ...aiPreview,
+                      [field]:
+                        e.target.value,
+                    })
+                  }
+                />
 
-            </div>
-          ))}
+              </div>
+            )
+          )}
 
           <button
             type="button"
@@ -1355,16 +1546,15 @@ function App() {
             ✅ Apply to Form
           </button>
 
-        </div>
+        </section>
       )}
 
-
-      {/* FORM */}
+      {/* =================================================
+          INSURANCE FORM
+      ================================================= */}
 
       <form
-        onSubmit={handleSubmit(
-          onSubmit
-        )}
+        onSubmit={handleSubmit(onSubmit)}
       >
 
         {formSchema.fields.map(
@@ -1385,6 +1575,8 @@ function App() {
                 <label>
                   {field.label}
                 </label>
+
+                {/* TEXT */}
 
                 {field.type === "text" && (
                   <input
@@ -1407,13 +1599,15 @@ function App() {
                                     .minLength,
 
                                 message:
-                                  `${field.label} must be at least ${field.validation.minLength} characters`
+                                  `${field.label} must be at least ${field.validation.minLength} characters`,
                               }
-                            : undefined
+                            : undefined,
                       }
                     )}
                   />
                 )}
+
+                {/* EMAIL */}
 
                 {field.type === "email" && (
                   <input
@@ -1438,13 +1632,15 @@ function App() {
                                   ),
 
                                 message:
-                                  "Please enter a valid email address"
+                                  "Please enter a valid email address",
                               }
-                            : undefined
+                            : undefined,
                       }
                     )}
                   />
                 )}
+
+                {/* SELECT */}
 
                 {field.type === "select" && (
                   <select
@@ -1454,7 +1650,7 @@ function App() {
                         required:
                           field.required
                             ? `${field.label} is required`
-                            : false
+                            : false,
                       }
                     )}
                   >
@@ -1463,7 +1659,7 @@ function App() {
                       Select an option
                     </option>
 
-                    {field.options.map(
+                    {field.options?.map(
                       (option) => (
                         <option
                           key={
@@ -1481,6 +1677,8 @@ function App() {
                   </select>
                 )}
 
+                {/* ERROR */}
+
                 {errors[field.name] && (
                   <p className="error">
                     {
@@ -1495,6 +1693,8 @@ function App() {
             );
           }
         )}
+
+        {/* FORM ACTIONS */}
 
         <div className="form-actions">
 
@@ -1520,12 +1720,11 @@ function App() {
 
       </form>
 
-
       {/* =================================================
           SUBMISSION HISTORY
       ================================================= */}
 
-      <div className="submission-history">
+      <section className="submission-history">
 
         <div className="history-header">
 
@@ -1544,12 +1743,8 @@ function App() {
 
             <button
               type="button"
-              onClick={
-                loadSubmissions
-              }
-              disabled={
-                historyLoading
-              }
+              onClick={loadSubmissions}
+              disabled={historyLoading}
             >
               {historyLoading
                 ? "Loading..."
@@ -1566,7 +1761,6 @@ function App() {
           </div>
 
         </div>
-
 
         {/* SEARCH / FILTER */}
 
@@ -1590,7 +1784,6 @@ function App() {
             />
 
           </div>
-
 
           <select
             value={incidentFilter}
@@ -1619,7 +1812,6 @@ function App() {
 
           </select>
 
-
           <select
             value={sortOrder}
             onChange={(e) =>
@@ -1641,25 +1833,25 @@ function App() {
 
         </div>
 
-
         {/* RESULT COUNT */}
 
         <div className="result-count">
 
           Showing{" "}
+
           <strong>
-            {
-              filteredSubmissions.length
-            }
+            {filteredSubmissions.length}
           </strong>{" "}
+
           of{" "}
+
           <strong>
             {submissions.length}
           </strong>{" "}
+
           claims
 
         </div>
-
 
         {/* SUBMISSIONS */}
 
@@ -1688,315 +1880,331 @@ function App() {
           <div className="submission-list">
 
             {filteredSubmissions.map(
-              (submission) => (
+              (submission) => {
 
-                <div
-                  className="submission-card"
-                  key={
-                    submission._id
-                  }
-                >
+                const data =
+                  submission.data || {};
 
-                  <div className="claim-header">
+                return (
+                  <article
+                    className="submission-card"
+                    key={
+                      submission._id
+                    }
+                  >
 
-                    <div>
+                    {/* CLAIM HEADER */}
 
-                      <h3>
-                        {submission.data
-                          ?.fullName ||
-                          "Unknown Claimant"}
-                      </h3>
+                    <div className="claim-header">
 
-                      <span className="claim-id">
-                        ID:{" "}
-                        {submission._id}
+                      <div>
+
+                        <h3>
+                          {data.fullName ||
+                            "Unknown Claimant"}
+                        </h3>
+
+                        <span className="claim-id">
+                          ID:{" "}
+                          {submission._id}
+                        </span>
+
+                      </div>
+
+                      <span className="claim-badge">
+
+                        {data.incidentType
+                          ? data.incidentType
+                              .replace(
+                                /_/g,
+                                " "
+                              )
+                              .replace(
+                                /\b\w/g,
+                                (char) =>
+                                  char.toUpperCase()
+                              )
+                          : "Unknown"}
+
                       </span>
 
                     </div>
 
-                    <span className="claim-badge">
-                      {
-                        submission.data
-                          ?.incidentType
-                          ? submission.data.incidentType
-                              .replace(
-                                "_",
-                                " "
-                              )
-                          : "Unknown"
-                      }
-                    </span>
+                    {/* DETAILS */}
 
-                  </div>
+                    <div className="claim-details">
 
-
-                  <div className="claim-details">
-
-                    <p>
-                      📧{" "}
-                      {submission.data
-                        ?.email ||
-                        "No email"}
-                    </p>
-
-                    <p>
-                      🚗{" "}
-                      {submission.data
-                        ?.vehicle ||
-                        "No vehicle"}
-                    </p>
-
-                    {submission.data
-                      ?.damageType && (
                       <p>
-                        🔧{" "}
-                        {submission.data.damageType.replace(
-                          "_",
-                          " "
-                        )}
+                        📧{" "}
+                        {data.email ||
+                          "No email"}
                       </p>
-                    )}
 
-                    <p className="submission-date">
-                      🕒{" "}
-                      {new Date(
-                        submission.createdAt
-                      ).toLocaleString()}
-                    </p>
+                      <p>
+                        🚗{" "}
+                        {data.vehicle ||
+                          "No vehicle"}
+                      </p>
 
-                  </div>
-
-
-                  {/* ACTIONS */}
-
-                  <div className="submission-actions">
-
-                    <button
-                      type="button"
-                      className="view-button"
-                      onClick={() =>
-                        viewSubmission(
-                          submission._id
-                        )
-                      }
-                    >
-                      👁️ View / Edit
-                    </button>
-
-
-                    <button
-                      type="button"
-                      className="analyze-button"
-                      onClick={() =>
-                        analyzeSubmission(
-                          submission._id
-                        )
-                      }
-                      disabled={
-                        analyzingSubmissionId ===
-                        submission._id
-                      }
-                    >
-                      {analyzingSubmissionId ===
-                      submission._id
-                        ? "🤖 Analyzing..."
-                        : "🤖 Analyze Claim"}
-                    </button>
-
-
-                    <button
-                      type="button"
-                      className="print-button"
-                      onClick={() =>
-                        printClaim(
-                          submission
-                        )
-                      }
-                    >
-                      🖨️ Report
-                    </button>
-
-
-                    <button
-                      type="button"
-                      className="delete-button"
-                      onClick={() =>
-                        deleteSubmission(
-                          submission._id
-                        )
-                      }
-                    >
-                      🗑️ Delete
-                    </button>
-
-                  </div>
-
-
-                  {/* AI ANALYSIS */}
-
-                  {analysis?.submissionId ===
-                    submission._id && (
-
-                    <div className="analysis-card">
-
-                      <div className="analysis-title">
-                        🤖 AI Claim Analysis
-                      </div>
-
-
-                      <div className="score-section">
-
-                        <div>
-                          <div className="score-label">
-                            Completeness Score
-                          </div>
-
-                          <div className="score-value">
-                            {
-                              analysis.completenessScore
-                            }
-                            /100
-                          </div>
-                        </div>
-
-                        <div>
-
-                          <div className="score-label">
-                            Priority
-                          </div>
-
-                          <span
-                            className={`priority priority-${String(
-                              analysis.priority ||
-                                "medium"
-                            )
-                              .toLowerCase()
-                              .replace(
-                                /\s+/g,
-                                "-"
-                              )}`}
-                          >
-                            {
-                              analysis.priority
-                            }
-                          </span>
-
-                        </div>
-
-                      </div>
-
-
-                      <div className="analysis-section">
-
-                        <h4>
-                          ⚠️ Missing Information
-                        </h4>
-
-                        {analysis
-                          .missingInformation
-                          ?.length > 0 ? (
-
-                          <ul>
-
-                            {analysis.missingInformation.map(
-                              (
-                                item,
-                                index
-                              ) => (
-                                <li
-                                  key={
-                                    index
-                                  }
-                                >
-                                  {item}
-                                </li>
-                              )
-                            )}
-
-                          </ul>
-
-                        ) : (
-
-                          <p>
-                            No missing
-                            information
-                            detected.
-                          </p>
-
-                        )}
-
-                      </div>
-
-
-                      <div className="analysis-section">
-
-                        <h4>
-                          🔍 Potential Issues
-                        </h4>
-
-                        {analysis.issues
-                          ?.length > 0 ? (
-
-                          <ul>
-
-                            {analysis.issues.map(
-                              (
-                                item,
-                                index
-                              ) => (
-                                <li
-                                  key={
-                                    index
-                                  }
-                                >
-                                  {item}
-                                </li>
-                              )
-                            )}
-
-                          </ul>
-
-                        ) : (
-
-                          <p>
-                            No issues
-                            detected.
-                          </p>
-
-                        )}
-
-                      </div>
-
-
-                      <div className="recommendation">
-
-                        <h4>
-                          💡 AI Recommendation
-                        </h4>
-
+                      {data.damageType && (
                         <p>
-                          {
-                            analysis.recommendation
-                          }
+                          🔧{" "}
+                          {String(
+                            data.damageType
+                          ).replace(
+                            /_/g,
+                            " "
+                          )}
                         </p>
+                      )}
 
-                      </div>
+                      <p className="submission-date">
+                        🕒{" "}
+                        {submission.createdAt
+                          ? new Date(
+                              submission.createdAt
+                            ).toLocaleString()
+                          : "-"}
+                      </p>
 
                     </div>
 
-                  )}
+                    {/* ACTIONS */}
 
-                </div>
+                    <div className="submission-actions">
 
-              )
+                      <button
+                        type="button"
+                        className="view-button"
+                        onClick={() =>
+                          viewSubmission(
+                            submission._id
+                          )
+                        }
+                      >
+                        👁️ View / Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        className="analyze-button"
+                        onClick={() =>
+                          analyzeSubmission(
+                            submission._id
+                          )
+                        }
+                        disabled={
+                          analyzingSubmissionId ===
+                          submission._id
+                        }
+                      >
+                        {analyzingSubmissionId ===
+                        submission._id
+                          ? "🤖 Analyzing..."
+                          : "🤖 Analyze Claim"}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="print-button"
+                        onClick={() =>
+                          printClaim(
+                            submission
+                          )
+                        }
+                      >
+                        🖨️ Report
+                      </button>
+
+                      <button
+                        type="button"
+                        className="delete-button"
+                        onClick={() =>
+                          deleteSubmission(
+                            submission._id
+                          )
+                        }
+                      >
+                        🗑️ Delete
+                      </button>
+
+                    </div>
+
+                    {/* =================================================
+                        AI ANALYSIS
+                    ================================================= */}
+
+                    {analysis?.submissionId ===
+                      submission._id && (
+
+                      <div className="analysis-card">
+
+                        <div className="analysis-title">
+                          🤖 AI Claim Analysis
+                        </div>
+
+                        {/* SCORE */}
+
+                        <div className="score-section">
+
+                          <div>
+                            <div className="score-label">
+                              Completeness Score
+                            </div>
+
+                            <div className="score-value">
+                              {
+                                analysis.completenessScore ??
+                                  0
+                              }
+                              /100
+                            </div>
+                          </div>
+
+                          <div>
+
+                            <div className="score-label">
+                              Priority
+                            </div>
+
+                            <span
+                              className={`priority priority-${String(
+                                analysis.priority ||
+                                  "medium"
+                              )
+                                .toLowerCase()
+                                .replace(
+                                  /\s+/g,
+                                  "-"
+                                )}`}
+                            >
+                              {
+                                analysis.priority ||
+                                  "Medium"
+                              }
+                            </span>
+
+                          </div>
+
+                        </div>
+
+                        {/* MISSING INFORMATION */}
+
+                        <div className="analysis-section">
+
+                          <h4>
+                            ⚠️ Missing Information
+                          </h4>
+
+                          {analysis
+                            .missingInformation
+                            ?.length >
+                          0 ? (
+
+                            <ul>
+
+                              {analysis.missingInformation.map(
+                                (
+                                  item,
+                                  index
+                                ) => (
+                                  <li
+                                    key={
+                                      index
+                                    }
+                                  >
+                                    {item}
+                                  </li>
+                                )
+                              )}
+
+                            </ul>
+
+                          ) : (
+
+                            <p>
+                              No missing
+                              information
+                              detected.
+                            </p>
+
+                          )}
+
+                        </div>
+
+                        {/* ISSUES */}
+
+                        <div className="analysis-section">
+
+                          <h4>
+                            🔍 Potential Issues
+                          </h4>
+
+                          {analysis.issues
+                            ?.length >
+                          0 ? (
+
+                            <ul>
+
+                              {analysis.issues.map(
+                                (
+                                  item,
+                                  index
+                                ) => (
+                                  <li
+                                    key={
+                                      index
+                                    }
+                                  >
+                                    {item}
+                                  </li>
+                                )
+                              )}
+
+                            </ul>
+
+                          ) : (
+
+                            <p>
+                              No issues
+                              detected.
+                            </p>
+
+                          )}
+
+                        </div>
+
+                        {/* RECOMMENDATION */}
+
+                        <div className="recommendation">
+
+                          <h4>
+                            💡 AI Recommendation
+                          </h4>
+
+                          <p>
+                            {
+                              analysis.recommendation ||
+                                "No recommendation available."
+                            }
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                    )}
+
+                  </article>
+                );
+              }
             )}
 
           </div>
 
         )}
 
-      </div>
-
+      </section>
 
       {/* =================================================
           EDIT SUBMISSION
@@ -2004,16 +2212,22 @@ function App() {
 
       {selectedSubmission && (
 
-        <div className="edit-section">
+        <section className="edit-section">
 
-          <h2>
-            ✏️ Edit Submission
-          </h2>
+          <div className="edit-header">
 
-          <p>
-            Update your saved
-            insurance claim.
-          </p>
+            <div>
+              <h2>
+                ✏️ Edit Submission
+              </h2>
+
+              <p>
+                Update your saved
+                insurance claim.
+              </p>
+            </div>
+
+          </div>
 
           {Object.entries(
             editData
@@ -2029,12 +2243,12 @@ function App() {
               </label>
 
               <input
-                value={value || ""}
+                value={value ?? ""}
                 onChange={(e) =>
                   setEditData({
                     ...editData,
                     [field]:
-                      e.target.value
+                      e.target.value,
                   })
                 }
               />
@@ -2043,40 +2257,64 @@ function App() {
 
           ))}
 
+          <div className="edit-actions">
 
-          <button
-            type="button"
-            className="save-button"
-            onClick={
-              updateSubmission
-            }
-            disabled={editLoading}
-          >
-            {editLoading
-              ? "⏳ Updating..."
-              : "💾 Save Changes"}
-          </button>
+            <button
+              type="button"
+              className="save-button"
+              onClick={
+                updateSubmission
+              }
+              disabled={editLoading}
+            >
+              {editLoading
+                ? "⏳ Updating..."
+                : "💾 Save Changes"}
+            </button>
 
+            <button
+              type="button"
+              className="cancel-button"
+              onClick={() => {
+                setSelectedSubmission(
+                  null
+                );
 
-          <button
-            type="button"
-            className="cancel-button"
-            onClick={() => {
-              setSelectedSubmission(
-                null
-              );
+                setEditData({});
 
-              setEditData({});
+                setAnalysis(null);
+              }}
+            >
+              ❌ Cancel
+            </button>
 
-              setAnalysis(null);
-            }}
-          >
-            ❌ Cancel
-          </button>
+          </div>
 
-        </div>
+        </section>
 
       )}
+
+      {/* =================================================
+          FOOTER
+      ================================================= */}
+
+      <footer className="app-footer">
+
+        <div>
+          <strong>
+            ✦ Forma AI
+          </strong>
+
+          <span>
+            AI-powered insurance claim management
+          </span>
+        </div>
+
+        <p>
+          Built with React • Node.js • MongoDB • AI
+        </p>
+
+      </footer>
 
     </div>
   );
