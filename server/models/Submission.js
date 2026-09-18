@@ -44,6 +44,18 @@ const submissionSchema = new mongoose.Schema(
         type: Date,
         default: null
       }
+    },
+
+    // Claim Status
+    status: {
+      type: String,
+      enum: [
+        "Pending",
+        "Under Review",
+        "Approved",
+        "Rejected"
+      ],
+      default: "Pending"
     }
   },
   {
