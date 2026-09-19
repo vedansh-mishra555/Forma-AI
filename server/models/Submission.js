@@ -12,7 +12,10 @@ const submissionSchema = new mongoose.Schema(
       required: true
     },
 
-    // AI Claim Analysis
+    // =========================
+    // AI CLAIM ANALYSIS
+    // =========================
+
     analysis: {
       completenessScore: {
         type: Number,
@@ -46,7 +49,10 @@ const submissionSchema = new mongoose.Schema(
       }
     },
 
-    // Claim Status
+    // =========================
+    // CLAIM STATUS
+    // =========================
+
     status: {
       type: String,
       enum: [

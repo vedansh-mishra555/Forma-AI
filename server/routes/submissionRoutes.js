@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const Submission = require("../models/Submission");
 
 const router = express.Router();
@@ -35,9 +36,16 @@ router.get("/", async (req, res) => {
 
 router.get("/:id", async (req, res) => {
   try {
-    const submission = await Submission.findById(
-      req.params.id
-    );
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid submission ID"
+      });
+    }
+
+    const submission = await Submission.findById(id);
 
     if (!submission) {
       return res.status(404).json({
@@ -106,7 +114,15 @@ router.post("/", async (req, res) => {
 
 router.patch("/:id/status", async (req, res) => {
   try {
+    const { id } = req.params;
     const { status } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid submission ID"
+      });
+    }
 
     const allowedStatuses = [
       "Pending",
@@ -125,7 +141,7 @@ router.patch("/:id/status", async (req, res) => {
 
     const submission =
       await Submission.findByIdAndUpdate(
-        req.params.id,
+        id,
         {
           status
         },
@@ -165,9 +181,17 @@ router.patch("/:id/status", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
+    const { id } = req.params;
     const { data } = req.body;
 
-    if (!data) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid submission ID"
+      });
+    }
+
+    if (!data || typeof data !== "object") {
       return res.status(400).json({
         success: false,
         message: "Submission data is required"
@@ -176,68 +200,9 @@ router.put("/:id", async (req, res) => {
 
     const submission =
       await Submission.findByIdAndUpdate(
-        req.params.id,
+        id,
         {
           data
-        },
-        {
-          new: true,
-          runValidators: true
-        }
-      );
-
-    if (!submission) {
-      return res.status(404).json({
-        success: false,
-        message: "Submission not found"
-      });
-    }
-
-    res.json({
-      success: true,
-      message: "Submission updated successfully",
-      submission
-    });
-  } catch (error) {
-    console.error("Update submission error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to update submission"
-    });
-  }
-});
-/* =====================================================
-   UPDATE SUBMISSION
-   PUT /api/submissions/:id
-===================================================== */
-
-router.put("/:id", async (req, res) => {
-  try {
-    const { data } = req.body;
-
-    if (!data) {
-      return res.status(400).json({
-        success: false,
-        message: "Submission data is required"
-      });
-    }
-
-    const submission =
-      await Submission.findByIdAndUpdate(
-        req.params.id,
-        {
-          data,
-
-          // Reset AI analysis because claim data changed
-          analysis: {
-            completenessScore: null,
-            priority: null,
-            missingInformation: [],
-            issues: [],
-            recommendation: "",
-            analyzedAt: null
-          }
         },
         {
           new: true,
@@ -275,10 +240,17 @@ router.put("/:id", async (req, res) => {
 
 router.delete("/:id", async (req, res) => {
   try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid submission ID"
+      });
+    }
+
     const submission =
-      await Submission.findByIdAndDelete(
-        req.params.id
-      );
+      await Submission.findByIdAndDelete(id);
 
     if (!submission) {
       return res.status(404).json({

@@ -11,6 +11,15 @@ function App() {
   const [formSchema, setFormSchema] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const {
+    register,
+    watch,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm();
+
   /* =====================================================
      MAGIC INPUT
   ===================================================== */
@@ -48,7 +57,7 @@ function App() {
   ===================================================== */
 
   const [analysis, setAnalysis] = useState(null);
-  const [, setAnalysisLoading] = useState(false);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analyzingSubmissionId, setAnalyzingSubmissionId] =
     useState(null);
 
@@ -65,19 +74,6 @@ function App() {
   ===================================================== */
 
   const [toast, setToast] = useState(null);
-
-  /* =====================================================
-     REACT HOOK FORM
-  ===================================================== */
-
-  const {
-    register,
-    watch,
-    handleSubmit,
-    setValue,
-    reset,
-    formState: { errors },
-  } = useForm();
 
   /* =====================================================
      TOAST
@@ -107,7 +103,10 @@ function App() {
 
         setFormSchema(response.data.form);
       } catch (error) {
-        console.error("Form loading failed:", error);
+        console.error(
+          "Form loading failed:",
+          error
+        );
 
         showToast(
           "Failed to load insurance form",
@@ -154,10 +153,14 @@ function App() {
   }, []);
 
   /* =====================================================
-     AUTO SAVE DRAFT
+     FORM VALUES
   ===================================================== */
 
   const formValues = watch();
+
+  /* =====================================================
+     AUTO SAVE DRAFT
+  ===================================================== */
 
   useEffect(() => {
     const hasData = Object.values(formValues).some(
@@ -176,7 +179,7 @@ function App() {
   }, [formValues]);
 
   /* =====================================================
-     LOAD DRAFT
+     LOAD SAVED DRAFT
   ===================================================== */
 
   useEffect(() => {
@@ -203,6 +206,10 @@ function App() {
       console.error(
         "Draft loading failed:",
         error
+      );
+
+      localStorage.removeItem(
+        "forma-ai-draft"
       );
     }
   }, [setValue]);
@@ -242,10 +249,7 @@ function App() {
         response.data.submission;
 
       setSelectedSubmission(submission);
-
-      setEditData(
-        submission.data || {}
-      );
+      setEditData(submission.data || {});
 
       if (submission.analysis) {
         setAnalysis({
@@ -285,9 +289,9 @@ function App() {
         }
       );
 
-      setAnalysis(null);
       setSelectedSubmission(null);
       setEditData({});
+      setAnalysis(null);
 
       await loadSubmissions();
 
@@ -334,14 +338,16 @@ function App() {
       );
 
       if (
-        selectedSubmission?._id === id
+        selectedSubmission &&
+        selectedSubmission._id === id
       ) {
         setSelectedSubmission(null);
         setEditData({});
       }
 
       if (
-        analysis?.submissionId === id
+        analysis &&
+        analysis.submissionId === id
       ) {
         setAnalysis(null);
       }
@@ -378,29 +384,12 @@ function App() {
       );
 
       if (response.data.success) {
-        const newAnalysis = {
+        setAnalysis({
           submissionId: id,
           ...response.data.analysis,
-        };
+        });
 
-        setAnalysis(newAnalysis);
-
-        /*
-         * Update local submission state immediately
-         * so dashboard analytics update without
-         * requiring a manual refresh.
-         */
-        setSubmissions((current) =>
-          current.map((submission) =>
-            submission._id === id
-              ? {
-                  ...submission,
-                  analysis:
-                    response.data.analysis,
-                }
-              : submission
-          )
-        );
+        await loadSubmissions();
 
         showToast(
           "AI analysis completed!",
@@ -445,7 +434,7 @@ function App() {
       const response = await API.post(
         "/ai/magic-input",
         {
-          text: magicText,
+          text: magicText.trim(),
         }
       );
 
@@ -487,10 +476,7 @@ function App() {
           value !== null &&
           value !== ""
         ) {
-          setValue(field, value, {
-            shouldValidate: true,
-            shouldDirty: true,
-          });
+          setValue(field, value);
         }
       }
     );
@@ -580,41 +566,23 @@ function App() {
   const filteredSubmissions = useMemo(() => {
     let result = [...submissions];
 
-    /* SEARCH */
-
     if (searchText.trim()) {
       const search =
-        searchText.toLowerCase().trim();
+        searchText.trim().toLowerCase();
 
       result = result.filter(
         (submission) => {
           const data =
             submission.data || {};
 
-          return (
-            String(
-              data.fullName || ""
-            )
-              .toLowerCase()
-              .includes(search) ||
-            String(
-              data.email || ""
-            )
-              .toLowerCase()
-              .includes(search) ||
-            String(
-              data.vehicle || ""
-            )
-              .toLowerCase()
-              .includes(search) ||
-            String(
-              data.incidentType || ""
-            )
-              .toLowerCase()
-              .includes(search) ||
-            String(
-              data.damageType || ""
-            )
+          return [
+            data.fullName,
+            data.email,
+            data.vehicle,
+            data.incidentType,
+            data.damageType,
+          ].some((value) =>
+            String(value || "")
               .toLowerCase()
               .includes(search)
           );
@@ -622,27 +590,20 @@ function App() {
       );
     }
 
-    /* INCIDENT FILTER */
-
     if (incidentFilter !== "all") {
       result = result.filter(
         (submission) =>
-          submission.data
-            ?.incidentType ===
+          submission.data?.incidentType ===
           incidentFilter
       );
     }
 
-    /* SORT */
-
     result.sort((a, b) => {
-      const dateA = new Date(
-        a.createdAt
-      ).getTime();
+      const dateA =
+        new Date(a.createdAt).getTime();
 
-      const dateB = new Date(
-        b.createdAt
-      ).getTime();
+      const dateB =
+        new Date(b.createdAt).getTime();
 
       return sortOrder === "newest"
         ? dateB - dateA
@@ -658,7 +619,7 @@ function App() {
   ]);
 
   /* =====================================================
-     DASHBOARD STATISTICS
+     BASIC STATISTICS
   ===================================================== */
 
   const totalClaims =
@@ -667,24 +628,21 @@ function App() {
   const accidentClaims =
     submissions.filter(
       (submission) =>
-        submission.data
-          ?.incidentType ===
+        submission.data?.incidentType ===
         "accident"
     ).length;
 
   const theftClaims =
     submissions.filter(
       (submission) =>
-        submission.data
-          ?.incidentType ===
+        submission.data?.incidentType ===
         "theft"
     ).length;
 
   const animalClaims =
     submissions.filter(
       (submission) =>
-        submission.data
-          ?.incidentType ===
+        submission.data?.incidentType ===
         "animal_collision"
     ).length;
 
@@ -693,29 +651,27 @@ function App() {
   ===================================================== */
 
   const analytics = useMemo(() => {
-    const total = submissions.length;
+    const total =
+      submissions.length;
 
     const accidents =
       submissions.filter(
         (submission) =>
-          submission.data
-            ?.incidentType ===
+          submission.data?.incidentType ===
           "accident"
       ).length;
 
     const thefts =
       submissions.filter(
         (submission) =>
-          submission.data
-            ?.incidentType ===
+          submission.data?.incidentType ===
           "theft"
       ).length;
 
     const animalCollisions =
       submissions.filter(
         (submission) =>
-          submission.data
-            ?.incidentType ===
+          submission.data?.incidentType ===
           "animal_collision"
       ).length;
 
@@ -734,22 +690,22 @@ function App() {
     const highPriority =
       analyzedSubmissions.filter(
         (submission) =>
-          submission.analysis
-            ?.priority === "High"
+          submission.analysis?.priority ===
+          "High"
       ).length;
 
     const mediumPriority =
       analyzedSubmissions.filter(
         (submission) =>
-          submission.analysis
-            ?.priority === "Medium"
+          submission.analysis?.priority ===
+          "Medium"
       ).length;
 
     const lowPriority =
       analyzedSubmissions.filter(
         (submission) =>
-          submission.analysis
-            ?.priority === "Low"
+          submission.analysis?.priority ===
+          "Low"
       ).length;
 
     const averageCompleteness =
@@ -879,7 +835,7 @@ function App() {
   };
 
   /* =====================================================
-     PRINT REPORT
+     PRINT CLAIM REPORT
   ===================================================== */
 
   const printClaim = (submission) => {
@@ -902,15 +858,6 @@ function App() {
       return;
     }
 
-    const escapeHTML = (value) => {
-      return String(value || "-")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    };
-
     printWindow.document.write(`
       <html>
         <head>
@@ -921,8 +868,6 @@ function App() {
               font-family: Arial, sans-serif;
               padding: 40px;
               color: #111;
-              max-width: 900px;
-              margin: auto;
             }
 
             h1 {
@@ -947,15 +892,10 @@ function App() {
               font-weight: bold;
             }
 
-            .value {
-              text-align: right;
-            }
-
             .footer {
               margin-top: 40px;
               color: #777;
               font-size: 12px;
-              text-align: center;
             }
           </style>
         </head>
@@ -964,77 +904,51 @@ function App() {
 
           <h1>Forma AI</h1>
 
-          <p>
-            AI-powered insurance claim management
-          </p>
-
           <h2>Insurance Claim Report</h2>
 
           <div class="row">
             <span class="label">Name</span>
-            <span class="value">
-              ${escapeHTML(data.fullName)}
-            </span>
+            <span>${data.fullName || "-"}</span>
           </div>
 
           <div class="row">
             <span class="label">Email</span>
-            <span class="value">
-              ${escapeHTML(data.email)}
-            </span>
+            <span>${data.email || "-"}</span>
           </div>
 
           <div class="row">
             <span class="label">Vehicle</span>
-            <span class="value">
-              ${escapeHTML(data.vehicle)}
-            </span>
+            <span>${data.vehicle || "-"}</span>
           </div>
 
           <div class="row">
             <span class="label">Incident</span>
-            <span class="value">
-              ${escapeHTML(data.incidentType)}
-            </span>
+            <span>${data.incidentType || "-"}</span>
           </div>
 
           <div class="row">
             <span class="label">Damage</span>
-            <span class="value">
-              ${escapeHTML(data.damageType)}
-            </span>
+            <span>${data.damageType || "-"}</span>
           </div>
 
           <div class="row">
             <span class="label">Police Report</span>
-            <span class="value">
-              ${escapeHTML(data.policeReport)}
-            </span>
+            <span>${data.policeReport || "-"}</span>
           </div>
 
           <div class="row">
-            <span class="label">
-              Police Report Number
-            </span>
-
-            <span class="value">
-              ${escapeHTML(
-                data.policeReportNumber
-              )}
-            </span>
+            <span class="label">Police Report Number</span>
+            <span>${data.policeReportNumber || "-"}</span>
           </div>
 
           <div class="row">
             <span class="label">Submitted</span>
-
-            <span class="value">
+            <span>
               ${
                 submission.createdAt
-                  ? escapeHTML(
-                      new Date(
-                        submission.createdAt
-                      ).toLocaleString()
-                    )
+                  ? new Date(
+                      submission.createdAt
+                    ).toLocaleString()
                   : "-"
               }
             </span>
@@ -1074,9 +988,20 @@ function App() {
   if (!formSchema) {
     return (
       <div className="container">
-        <h2>
-          Unable to load form.
-        </h2>
+        <div className="loading">
+          <h2>
+            Unable to load form.
+          </h2>
+
+          <button
+            type="button"
+            onClick={() =>
+              window.location.reload()
+            }
+          >
+            🔄 Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -1096,11 +1021,11 @@ function App() {
         <div
           className={`toast toast-${toast.type}`}
         >
-          <strong>
+          <span className="toast-icon">
             {toast.type === "success"
               ? "✓"
               : "!"}
-          </strong>
+          </span>
 
           <span>
             {toast.message}
@@ -1109,7 +1034,7 @@ function App() {
       )}
 
       {/* =================================================
-          BRAND HEADER
+          BRAND
       ================================================= */}
 
       <header className="brand-header">
@@ -1158,7 +1083,9 @@ function App() {
             </div>
 
             <div>
-              <span>Total Claims</span>
+              <span>
+                Total Claims
+              </span>
 
               <strong>
                 {totalClaims}
@@ -1172,7 +1099,9 @@ function App() {
             </div>
 
             <div>
-              <span>Accidents</span>
+              <span>
+                Accidents
+              </span>
 
               <strong>
                 {accidentClaims}
@@ -1186,7 +1115,9 @@ function App() {
             </div>
 
             <div>
-              <span>Theft</span>
+              <span>
+                Theft
+              </span>
 
               <strong>
                 {theftClaims}
@@ -1200,7 +1131,9 @@ function App() {
             </div>
 
             <div>
-              <span>Animal Collision</span>
+              <span>
+                Animal Collision
+              </span>
 
               <strong>
                 {animalClaims}
@@ -1340,6 +1273,8 @@ function App() {
               AI Priority Distribution
             </h3>
 
+            {/* HIGH */}
+
             <div className="priority-item">
 
               <div>
@@ -1369,6 +1304,8 @@ function App() {
 
             </div>
 
+            {/* MEDIUM */}
+
             <div className="priority-item">
 
               <div>
@@ -1397,6 +1334,8 @@ function App() {
               </div>
 
             </div>
+
+            {/* LOW */}
 
             <div className="priority-item">
 
@@ -1550,7 +1489,7 @@ function App() {
       )}
 
       {/* =================================================
-          INSURANCE FORM
+          CLAIM FORM
       ================================================= */}
 
       <form
@@ -1572,14 +1511,20 @@ function App() {
                 key={field.name}
               >
 
-                <label>
+                <label htmlFor={field.name}>
                   {field.label}
+                  {field.required && (
+                    <span className="required-star">
+                      *
+                    </span>
+                  )}
                 </label>
 
                 {/* TEXT */}
 
                 {field.type === "text" && (
                   <input
+                    id={field.name}
                     type="text"
                     {...register(
                       field.name,
@@ -1594,8 +1539,7 @@ function App() {
                             ?.minLength
                             ? {
                                 value:
-                                  field
-                                    .validation
+                                  field.validation
                                     .minLength,
 
                                 message:
@@ -1611,6 +1555,7 @@ function App() {
 
                 {field.type === "email" && (
                   <input
+                    id={field.name}
                     type="email"
                     {...register(
                       field.name,
@@ -1626,8 +1571,7 @@ function App() {
                             ? {
                                 value:
                                   new RegExp(
-                                    field
-                                      .validation
+                                    field.validation
                                       .pattern
                                   ),
 
@@ -1644,6 +1588,7 @@ function App() {
 
                 {field.type === "select" && (
                   <select
+                    id={field.name}
                     {...register(
                       field.name,
                       {
@@ -1762,7 +1707,7 @@ function App() {
 
         </div>
 
-        {/* SEARCH / FILTER */}
+        {/* SEARCH */}
 
         <div className="filter-panel">
 
@@ -1784,6 +1729,8 @@ function App() {
             />
 
           </div>
+
+          {/* INCIDENT */}
 
           <select
             value={incidentFilter}
@@ -1812,6 +1759,8 @@ function App() {
 
           </select>
 
+          {/* SORT */}
+
           <select
             value={sortOrder}
             onChange={(e) =>
@@ -1838,22 +1787,18 @@ function App() {
         <div className="result-count">
 
           Showing{" "}
-
           <strong>
             {filteredSubmissions.length}
           </strong>{" "}
-
           of{" "}
-
           <strong>
             {submissions.length}
           </strong>{" "}
-
           claims
 
         </div>
 
-        {/* SUBMISSIONS */}
+        {/* EMPTY */}
 
         {filteredSubmissions.length ===
         0 ? (
@@ -1885,6 +1830,10 @@ function App() {
                 const data =
                   submission.data || {};
 
+                const isAnalyzing =
+                  analyzingSubmissionId ===
+                  submission._id;
+
                 return (
                   <article
                     className="submission-card"
@@ -1893,7 +1842,7 @@ function App() {
                     }
                   >
 
-                    {/* CLAIM HEADER */}
+                    {/* HEADER */}
 
                     <div className="claim-header">
 
@@ -1912,20 +1861,13 @@ function App() {
                       </div>
 
                       <span className="claim-badge">
-
                         {data.incidentType
                           ? data.incidentType
                               .replace(
                                 /_/g,
                                 " "
                               )
-                              .replace(
-                                /\b\w/g,
-                                (char) =>
-                                  char.toUpperCase()
-                              )
                           : "Unknown"}
-
                       </span>
 
                     </div>
@@ -1964,7 +1906,7 @@ function App() {
                           ? new Date(
                               submission.createdAt
                             ).toLocaleString()
-                          : "-"}
+                          : "Unknown date"}
                       </p>
 
                     </div>
@@ -1994,12 +1936,11 @@ function App() {
                           )
                         }
                         disabled={
-                          analyzingSubmissionId ===
-                          submission._id
+                          isAnalyzing ||
+                          analysisLoading
                         }
                       >
-                        {analyzingSubmissionId ===
-                        submission._id
+                        {isAnalyzing
                           ? "🤖 Analyzing..."
                           : "🤖 Analyze Claim"}
                       </button>
@@ -2030,9 +1971,7 @@ function App() {
 
                     </div>
 
-                    {/* =================================================
-                        AI ANALYSIS
-                    ================================================= */}
+                    {/* AI ANALYSIS */}
 
                     {analysis?.submissionId ===
                       submission._id && (
@@ -2078,17 +2017,15 @@ function App() {
                                   "-"
                                 )}`}
                             >
-                              {
-                                analysis.priority ||
-                                  "Medium"
-                              }
+                              {analysis.priority ||
+                                "Medium"}
                             </span>
 
                           </div>
 
                         </div>
 
-                        {/* MISSING INFORMATION */}
+                        {/* MISSING */}
 
                         <div className="analysis-section">
 
@@ -2098,8 +2035,7 @@ function App() {
 
                           {analysis
                             .missingInformation
-                            ?.length >
-                          0 ? (
+                            ?.length > 0 ? (
 
                             <ul>
 
@@ -2141,8 +2077,7 @@ function App() {
                           </h4>
 
                           {analysis.issues
-                            ?.length >
-                          0 ? (
+                            ?.length > 0 ? (
 
                             <ul>
 
@@ -2185,14 +2120,13 @@ function App() {
                           <p>
                             {
                               analysis.recommendation ||
-                                "No recommendation available."
+                              "No recommendation available."
                             }
                           </p>
 
                         </div>
 
                       </div>
-
                     )}
 
                   </article>
@@ -2201,7 +2135,6 @@ function App() {
             )}
 
           </div>
-
         )}
 
       </section>
@@ -2214,20 +2147,14 @@ function App() {
 
         <section className="edit-section">
 
-          <div className="edit-header">
+          <h2>
+            ✏️ Edit Submission
+          </h2>
 
-            <div>
-              <h2>
-                ✏️ Edit Submission
-              </h2>
-
-              <p>
-                Update your saved
-                insurance claim.
-              </p>
-            </div>
-
-          </div>
+          <p>
+            Update your saved insurance
+            claim.
+          </p>
 
           {Object.entries(
             editData
@@ -2243,7 +2170,7 @@ function App() {
               </label>
 
               <input
-                value={value ?? ""}
+                value={value || ""}
                 onChange={(e) =>
                   setEditData({
                     ...editData,
@@ -2257,64 +2184,31 @@ function App() {
 
           ))}
 
-          <div className="edit-actions">
+          <button
+            type="button"
+            className="save-button"
+            onClick={updateSubmission}
+            disabled={editLoading}
+          >
+            {editLoading
+              ? "⏳ Updating..."
+              : "💾 Save Changes"}
+          </button>
 
-            <button
-              type="button"
-              className="save-button"
-              onClick={
-                updateSubmission
-              }
-              disabled={editLoading}
-            >
-              {editLoading
-                ? "⏳ Updating..."
-                : "💾 Save Changes"}
-            </button>
-
-            <button
-              type="button"
-              className="cancel-button"
-              onClick={() => {
-                setSelectedSubmission(
-                  null
-                );
-
-                setEditData({});
-
-                setAnalysis(null);
-              }}
-            >
-              ❌ Cancel
-            </button>
-
-          </div>
+          <button
+            type="button"
+            className="cancel-button"
+            onClick={() => {
+              setSelectedSubmission(null);
+              setEditData({});
+              setAnalysis(null);
+            }}
+          >
+            ❌ Cancel
+          </button>
 
         </section>
-
       )}
-
-      {/* =================================================
-          FOOTER
-      ================================================= */}
-
-      <footer className="app-footer">
-
-        <div>
-          <strong>
-            ✦ Forma AI
-          </strong>
-
-          <span>
-            AI-powered insurance claim management
-          </span>
-        </div>
-
-        <p>
-          Built with React • Node.js • MongoDB • AI
-        </p>
-
-      </footer>
 
     </div>
   );
