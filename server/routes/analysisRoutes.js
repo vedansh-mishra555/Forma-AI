@@ -6,17 +6,21 @@ const router = express.Router();
 
 // =====================================================
 // POST /api/analysis/:submissionId
-// Analyze and save claim analysis
+// ANALYZE CLAIM
 // =====================================================
 
 router.post("/:submissionId", async (req, res) => {
   try {
-
     const { submissionId } = req.params;
 
-    // Find submission
+    // =================================================
+    // FIND CLAIM
+    // =================================================
+
     const submission =
-      await Submission.findById(submissionId);
+      await Submission.findById(
+        submissionId
+      );
 
     if (!submission) {
       return res.status(404).json({
@@ -25,39 +29,49 @@ router.post("/:submissionId", async (req, res) => {
       });
     }
 
-
-    // Get submitted data
-    const data = submission.data || {};
-
+    const data =
+      submission.data || {};
 
     // =================================================
-    // CHECK MISSING INFORMATION
+    // MISSING INFORMATION
     // =================================================
 
     const missingInformation = [];
 
     if (!data.fullName) {
-      missingInformation.push("Full Name");
+      missingInformation.push(
+        "Full Name"
+      );
     }
 
     if (!data.email) {
-      missingInformation.push("Email Address");
+      missingInformation.push(
+        "Email Address"
+      );
     }
 
     if (!data.vehicle) {
-      missingInformation.push("Vehicle Name");
+      missingInformation.push(
+        "Vehicle Name"
+      );
     }
 
     if (!data.incidentType) {
-      missingInformation.push("Incident Type");
+      missingInformation.push(
+        "Incident Type"
+      );
     }
 
     if (!data.damageType) {
-      missingInformation.push("Damage Type");
+      missingInformation.push(
+        "Damage Type"
+      );
     }
 
     if (!data.policeReport) {
-      missingInformation.push("Police Report");
+      missingInformation.push(
+        "Police Report"
+      );
     }
 
     if (
@@ -81,13 +95,19 @@ router.post("/:submissionId", async (req, res) => {
       missingInformation.length;
 
     let completenessScore = Math.round(
-      (completedFields / totalRequiredFields) *
+      (completedFields /
+        totalRequiredFields) *
         100
     );
 
-    if (completenessScore < 0) {
-      completenessScore = 0;
-    }
+    completenessScore =
+      Math.max(
+        0,
+        Math.min(
+          100,
+          completenessScore
+        )
+      );
 
 
     // =================================================
@@ -96,9 +116,13 @@ router.post("/:submissionId", async (req, res) => {
 
     let priority = "Low";
 
-    if (completenessScore < 50) {
+    if (
+      completenessScore < 50
+    ) {
       priority = "High";
-    } else if (completenessScore < 80) {
+    } else if (
+      completenessScore < 80
+    ) {
       priority = "Medium";
     }
 
@@ -110,7 +134,8 @@ router.post("/:submissionId", async (req, res) => {
     const issues = [];
 
     if (
-      data.incidentType === "accident" &&
+      data.incidentType ===
+        "accident" &&
       !data.policeReport
     ) {
       issues.push(
@@ -127,6 +152,24 @@ router.post("/:submissionId", async (req, res) => {
       );
     }
 
+    if (
+      data.incidentType ===
+        "theft" &&
+      !data.policeReport
+    ) {
+      issues.push(
+        "Police report information is recommended for a theft claim."
+      );
+    }
+
+    if (
+      !data.damageType
+    ) {
+      issues.push(
+        "Damage information has not been provided."
+      );
+    }
+
 
     // =================================================
     // RECOMMENDATION
@@ -135,7 +178,10 @@ router.post("/:submissionId", async (req, res) => {
     let recommendation =
       "Claim information is sufficient for initial processing.";
 
-    if (missingInformation.length > 0) {
+    if (
+      missingInformation.length >
+      0
+    ) {
       recommendation =
         `Request the following information from the claimant: ${missingInformation.join(
           ", "
@@ -165,12 +211,13 @@ router.post("/:submissionId", async (req, res) => {
 
     res.json({
       success: true,
-      message: "Submission analyzed successfully",
-      analysis: submission.analysis
+      message:
+        "Claim analyzed successfully",
+      analysis:
+        submission.analysis
     });
 
   } catch (error) {
-
     console.error(
       "❌ Claim Analysis Error:",
       error
@@ -178,10 +225,11 @@ router.post("/:submissionId", async (req, res) => {
 
     res.status(500).json({
       success: false,
-      message: "Failed to analyze submission",
-      error: error.message
+      message:
+        "Failed to analyze claim",
+      error:
+        error.message
     });
-
   }
 });
 

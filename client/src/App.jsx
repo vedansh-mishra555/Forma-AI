@@ -4,21 +4,8 @@ import API from "./api";
 import "./App.css";
 
 function App() {
-  /* =====================================================
-     FORM
-  ===================================================== */
-
   const [formSchema, setFormSchema] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  const {
-    register,
-    watch,
-    handleSubmit,
-    setValue,
-    reset,
-    formState: { errors },
-  } = useForm();
 
   /* =====================================================
      MAGIC INPUT
@@ -29,7 +16,7 @@ function App() {
   const [aiPreview, setAiPreview] = useState(null);
 
   /* =====================================================
-     SUBMISSION
+     FORM SUBMISSION
   ===================================================== */
 
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -53,11 +40,20 @@ function App() {
   const [editLoading, setEditLoading] = useState(false);
 
   /* =====================================================
+     STATUS
+  ===================================================== */
+
+  const [statusUpdatingId, setStatusUpdatingId] =
+    useState(null);
+
+  /* =====================================================
      AI ANALYSIS
   ===================================================== */
 
   const [analysis, setAnalysis] = useState(null);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
+
+  const [, setAnalysisLoading] = useState(false);
+
   const [analyzingSubmissionId, setAnalyzingSubmissionId] =
     useState(null);
 
@@ -66,8 +62,12 @@ function App() {
   ===================================================== */
 
   const [searchText, setSearchText] = useState("");
-  const [incidentFilter, setIncidentFilter] = useState("all");
-  const [sortOrder, setSortOrder] = useState("newest");
+
+  const [incidentFilter, setIncidentFilter] =
+    useState("all");
+
+  const [sortOrder, setSortOrder] =
+    useState("newest");
 
   /* =====================================================
      TOAST
@@ -76,13 +76,26 @@ function App() {
   const [toast, setToast] = useState(null);
 
   /* =====================================================
-     TOAST
+     REACT HOOK FORM
+  ===================================================== */
+
+  const {
+    register,
+    watch,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors }
+  } = useForm();
+
+  /* =====================================================
+     TOAST FUNCTION
   ===================================================== */
 
   const showToast = (message, type = "success") => {
     setToast({
       message,
-      type,
+      type
     });
 
     setTimeout(() => {
@@ -95,29 +108,24 @@ function App() {
   ===================================================== */
 
   useEffect(() => {
-    const loadForm = async () => {
-      try {
-        const response = await API.get(
-          "/forms/insurance-claim"
-        );
-
+    API.get("/forms/insurance-claim")
+      .then((response) => {
         setFormSchema(response.data.form);
-      } catch (error) {
+        setLoading(false);
+      })
+      .catch((error) => {
         console.error(
           "Form loading failed:",
           error
         );
 
+        setLoading(false);
+
         showToast(
           "Failed to load insurance form",
           "error"
         );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadForm();
+      });
   }, []);
 
   /* =====================================================
@@ -128,7 +136,8 @@ function App() {
     try {
       setHistoryLoading(true);
 
-      const response = await API.get("/submissions");
+      const response =
+        await API.get("/submissions");
 
       setSubmissions(
         response.data.submissions || []
@@ -153,22 +162,15 @@ function App() {
   }, []);
 
   /* =====================================================
-     FORM VALUES
+     AUTO SAVE DRAFT
   ===================================================== */
 
   const formValues = watch();
 
-  /* =====================================================
-     AUTO SAVE DRAFT
-  ===================================================== */
-
   useEffect(() => {
-    const hasData = Object.values(formValues).some(
-      (value) =>
-        value !== undefined &&
-        value !== null &&
-        String(value).trim() !== ""
-    );
+    const hasData = Object.values(
+      formValues
+    ).some((value) => value);
 
     if (hasData) {
       localStorage.setItem(
@@ -179,26 +181,28 @@ function App() {
   }, [formValues]);
 
   /* =====================================================
-     LOAD SAVED DRAFT
+     LOAD DRAFT
   ===================================================== */
 
   useEffect(() => {
     const savedDraft =
-      localStorage.getItem("forma-ai-draft");
+      localStorage.getItem(
+        "forma-ai-draft"
+      );
 
     if (!savedDraft) return;
 
     try {
-      const draft = JSON.parse(savedDraft);
+      const draft =
+        JSON.parse(savedDraft);
 
       Object.entries(draft).forEach(
         ([field, value]) => {
-          if (
-            value !== undefined &&
-            value !== null &&
-            value !== ""
-          ) {
-            setValue(field, value);
+          if (value) {
+            setValue(
+              field,
+              value
+            );
           }
         }
       );
@@ -206,10 +210,6 @@ function App() {
       console.error(
         "Draft loading failed:",
         error
-      );
-
-      localStorage.removeItem(
-        "forma-ai-draft"
       );
     }
   }, [setValue]);
@@ -223,7 +223,6 @@ function App() {
 
     setMagicText("");
     setAiPreview(null);
-    setSubmitSuccess(false);
 
     localStorage.removeItem(
       "forma-ai-draft"
@@ -236,25 +235,95 @@ function App() {
   };
 
   /* =====================================================
+     UPDATE CLAIM STATUS
+  ===================================================== */
+
+  const updateClaimStatus = async (
+    id,
+    status
+  ) => {
+    try {
+      setStatusUpdatingId(id);
+
+      const response =
+        await API.patch(
+          `/submissions/${id}/status`,
+          {
+            status
+          }
+        );
+
+      if (response.data.success) {
+        setSubmissions((current) =>
+          current.map(
+            (submission) =>
+              submission._id === id
+                ? {
+                    ...submission,
+                    status:
+                      response.data
+                        .submission
+                        .status
+                  }
+                : submission
+          )
+        );
+
+        if (
+          selectedSubmission &&
+          selectedSubmission._id === id
+        ) {
+          setSelectedSubmission(
+            response.data.submission
+          );
+        }
+
+        showToast(
+          `Claim status changed to ${status}`,
+          "success"
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Status update failed:",
+        error
+      );
+
+      showToast(
+        error.response?.data?.message ||
+          "Failed to update claim status",
+        "error"
+      );
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  };
+
+  /* =====================================================
      VIEW SUBMISSION
   ===================================================== */
 
   const viewSubmission = async (id) => {
     try {
-      const response = await API.get(
-        `/submissions/${id}`
+      const response =
+        await API.get(
+          `/submissions/${id}`
+        );
+
+      setSelectedSubmission(
+        response.data.submission
       );
 
-      const submission =
-        response.data.submission;
+      setEditData(
+        response.data.submission.data
+      );
 
-      setSelectedSubmission(submission);
-      setEditData(submission.data || {});
-
-      if (submission.analysis) {
+      if (
+        response.data.submission.analysis
+      ) {
         setAnalysis({
           submissionId: id,
-          ...submission.analysis,
+          ...response.data.submission.analysis
         });
       } else {
         setAnalysis(null);
@@ -282,15 +351,18 @@ function App() {
     try {
       setEditLoading(true);
 
-      await API.put(
-        `/submissions/${selectedSubmission._id}`,
-        {
-          data: editData,
-        }
+      const response =
+        await API.put(
+          `/submissions/${selectedSubmission._id}`,
+          {
+            data: editData
+          }
+        );
+
+      setSelectedSubmission(
+        response.data.submission
       );
 
-      setSelectedSubmission(null);
-      setEditData({});
       setAnalysis(null);
 
       await loadSubmissions();
@@ -319,9 +391,10 @@ function App() {
   ===================================================== */
 
   const deleteSubmission = async (id) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this claim?"
-    );
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to delete this claim?"
+      );
 
     if (!confirmed) return;
 
@@ -379,14 +452,15 @@ function App() {
       setAnalyzingSubmissionId(id);
       setAnalysis(null);
 
-      const response = await API.post(
-        `/analysis/${id}`
-      );
+      const response =
+        await API.post(
+          `/analysis/${id}`
+        );
 
       if (response.data.success) {
         setAnalysis({
           submissionId: id,
-          ...response.data.analysis,
+          ...response.data.analysis
         });
 
         await loadSubmissions();
@@ -431,12 +505,13 @@ function App() {
       setMagicLoading(true);
       setAiPreview(null);
 
-      const response = await API.post(
-        "/ai/magic-input",
-        {
-          text: magicText.trim(),
-        }
-      );
+      const response =
+        await API.post(
+          "/ai/magic-input",
+          {
+            text: magicText
+          }
+        );
 
       setAiPreview(
         response.data.data
@@ -453,8 +528,7 @@ function App() {
       );
 
       showToast(
-        error.response?.data?.message ||
-          "AI processing failed",
+        "AI processing failed",
         "error"
       );
     } finally {
@@ -469,14 +543,13 @@ function App() {
   const applyAIData = () => {
     if (!aiPreview) return;
 
-    Object.entries(aiPreview).forEach(
-      ([field, value]) => {
-        if (
-          value !== undefined &&
-          value !== null &&
-          value !== ""
-        ) {
-          setValue(field, value);
+    Object.keys(aiPreview).forEach(
+      (field) => {
+        if (aiPreview[field]) {
+          setValue(
+            field,
+            aiPreview[field]
+          );
         }
       }
     );
@@ -494,8 +567,6 @@ function App() {
   ===================================================== */
 
   const onSubmit = async (data) => {
-    if (!formSchema) return;
-
     try {
       setSubmitLoading(true);
       setSubmitSuccess(false);
@@ -503,8 +574,9 @@ function App() {
       await API.post(
         "/submissions",
         {
-          formId: formSchema.formId,
-          data,
+          formId:
+            formSchema.formId,
+          data
         }
       );
 
@@ -532,8 +604,7 @@ function App() {
       );
 
       showToast(
-        error.response?.data?.message ||
-          "Failed to submit claim",
+        "Failed to submit claim",
         "error"
       );
     } finally {
@@ -560,66 +631,96 @@ function App() {
   };
 
   /* =====================================================
-     SEARCH + FILTER + SORT
+     SEARCH + FILTER
   ===================================================== */
 
-  const filteredSubmissions = useMemo(() => {
-    let result = [...submissions];
+  const filteredSubmissions =
+    useMemo(() => {
+      let result = [
+        ...submissions
+      ];
 
-    if (searchText.trim()) {
-      const search =
-        searchText.trim().toLowerCase();
+      if (searchText.trim()) {
+        const search =
+          searchText.toLowerCase();
 
-      result = result.filter(
-        (submission) => {
-          const data =
-            submission.data || {};
+        result =
+          result.filter(
+            (submission) => {
+              const data =
+                submission.data ||
+                {};
 
-          return [
-            data.fullName,
-            data.email,
-            data.vehicle,
-            data.incidentType,
-            data.damageType,
-          ].some((value) =>
-            String(value || "")
-              .toLowerCase()
-              .includes(search)
+              return (
+                String(
+                  data.fullName ||
+                    ""
+                )
+                  .toLowerCase()
+                  .includes(search) ||
+                String(
+                  data.email ||
+                    ""
+                )
+                  .toLowerCase()
+                  .includes(search) ||
+                String(
+                  data.vehicle ||
+                    ""
+                )
+                  .toLowerCase()
+                  .includes(search) ||
+                String(
+                  data.incidentType ||
+                    ""
+                )
+                  .toLowerCase()
+                  .includes(search)
+              );
+            }
           );
-        }
-      );
-    }
+      }
 
-    if (incidentFilter !== "all") {
-      result = result.filter(
-        (submission) =>
-          submission.data?.incidentType ===
-          incidentFilter
-      );
-    }
+      if (
+        incidentFilter !==
+        "all"
+      ) {
+        result =
+          result.filter(
+            (submission) =>
+              submission.data
+                ?.incidentType ===
+              incidentFilter
+          );
+      }
 
-    result.sort((a, b) => {
-      const dateA =
-        new Date(a.createdAt).getTime();
+      result.sort((a, b) => {
+        const dateA =
+          new Date(
+            a.createdAt
+          ).getTime();
 
-      const dateB =
-        new Date(b.createdAt).getTime();
+        const dateB =
+          new Date(
+            b.createdAt
+          ).getTime();
 
-      return sortOrder === "newest"
-        ? dateB - dateA
-        : dateA - dateB;
-    });
+        return sortOrder ===
+          "newest"
+          ? dateB - dateA
+          : dateA - dateB;
+      });
 
-    return result;
-  }, [
-    submissions,
-    searchText,
-    incidentFilter,
-    sortOrder,
-  ]);
+      return result;
+    }, [
+      submissions,
+      searchText,
+      incidentFilter,
+      sortOrder
+    ]);
 
   /* =====================================================
-     BASIC STATISTICS
+     DASHBOARD STATISTICS
   ===================================================== */
 
   const totalClaims =
@@ -628,123 +729,173 @@ function App() {
   const accidentClaims =
     submissions.filter(
       (submission) =>
-        submission.data?.incidentType ===
+        submission.data
+          ?.incidentType ===
         "accident"
     ).length;
 
   const theftClaims =
     submissions.filter(
       (submission) =>
-        submission.data?.incidentType ===
+        submission.data
+          ?.incidentType ===
         "theft"
     ).length;
 
   const animalClaims =
     submissions.filter(
       (submission) =>
-        submission.data?.incidentType ===
+        submission.data
+          ?.incidentType ===
         "animal_collision"
     ).length;
 
   /* =====================================================
-     ADVANCED ANALYTICS
+     STATUS STATISTICS
   ===================================================== */
 
-  const analytics = useMemo(() => {
-    const total =
-      submissions.length;
+  const pendingClaims =
+    submissions.filter(
+      (submission) =>
+        submission.status ===
+        "Pending"
+    ).length;
 
-    const accidents =
-      submissions.filter(
-        (submission) =>
-          submission.data?.incidentType ===
-          "accident"
-      ).length;
+  const reviewClaims =
+    submissions.filter(
+      (submission) =>
+        submission.status ===
+        "Under Review"
+    ).length;
 
-    const thefts =
-      submissions.filter(
-        (submission) =>
-          submission.data?.incidentType ===
-          "theft"
-      ).length;
+  const approvedClaims =
+    submissions.filter(
+      (submission) =>
+        submission.status ===
+        "Approved"
+    ).length;
 
-    const animalCollisions =
-      submissions.filter(
-        (submission) =>
-          submission.data?.incidentType ===
-          "animal_collision"
-      ).length;
+  const rejectedClaims =
+    submissions.filter(
+      (submission) =>
+        submission.status ===
+        "Rejected"
+    ).length;
 
-    const analyzedSubmissions =
-      submissions.filter(
-        (submission) =>
-          submission.analysis &&
-          typeof submission.analysis
-            .completenessScore ===
-            "number"
-      );
+  /* =====================================================
+     ADVANCED CLAIM ANALYTICS
+  ===================================================== */
 
-    const analyzed =
-      analyzedSubmissions.length;
+  const analytics =
+    useMemo(() => {
+      const total =
+        submissions.length;
 
-    const highPriority =
-      analyzedSubmissions.filter(
-        (submission) =>
-          submission.analysis?.priority ===
-          "High"
-      ).length;
+      const accidents =
+        submissions.filter(
+          (submission) =>
+            submission.data
+              ?.incidentType ===
+            "accident"
+        ).length;
 
-    const mediumPriority =
-      analyzedSubmissions.filter(
-        (submission) =>
-          submission.analysis?.priority ===
-          "Medium"
-      ).length;
+      const thefts =
+        submissions.filter(
+          (submission) =>
+            submission.data
+              ?.incidentType ===
+            "theft"
+        ).length;
 
-    const lowPriority =
-      analyzedSubmissions.filter(
-        (submission) =>
-          submission.analysis?.priority ===
-          "Low"
-      ).length;
+      const animalCollisions =
+        submissions.filter(
+          (submission) =>
+            submission.data
+              ?.incidentType ===
+            "animal_collision"
+        ).length;
 
-    const averageCompleteness =
-      analyzed > 0
-        ? Math.round(
-            analyzedSubmissions.reduce(
-              (sum, submission) =>
-                sum +
-                submission.analysis
-                  .completenessScore,
-              0
-            ) / analyzed
-          )
-        : 0;
+      const analyzedSubmissions =
+        submissions.filter(
+          (submission) =>
+            submission.analysis &&
+            typeof submission
+              .analysis
+              .completenessScore ===
+              "number"
+        );
 
-    const claimsNeedingAttention =
-      highPriority +
-      mediumPriority;
+      const analyzed =
+        analyzedSubmissions.length;
 
-    return {
-      total,
-      accidents,
-      thefts,
-      animalCollisions,
-      analyzed,
-      highPriority,
-      mediumPriority,
-      lowPriority,
-      averageCompleteness,
-      claimsNeedingAttention,
-    };
-  }, [submissions]);
+      const highPriority =
+        analyzedSubmissions.filter(
+          (submission) =>
+            submission.analysis
+              ?.priority ===
+            "High"
+        ).length;
+
+      const mediumPriority =
+        analyzedSubmissions.filter(
+          (submission) =>
+            submission.analysis
+              ?.priority ===
+            "Medium"
+        ).length;
+
+      const lowPriority =
+        analyzedSubmissions.filter(
+          (submission) =>
+            submission.analysis
+              ?.priority ===
+            "Low"
+        ).length;
+
+      const averageCompleteness =
+        analyzed > 0
+          ? Math.round(
+              analyzedSubmissions.reduce(
+                (
+                  sum,
+                  submission
+                ) =>
+                  sum +
+                  submission
+                    .analysis
+                    .completenessScore,
+                0
+              ) / analyzed
+            )
+          : 0;
+
+      const claimsNeedingAttention =
+        highPriority +
+        mediumPriority;
+
+      return {
+        total,
+        accidents,
+        thefts,
+        animalCollisions,
+        analyzed,
+        highPriority,
+        mediumPriority,
+        lowPriority,
+        averageCompleteness,
+        claimsNeedingAttention
+      };
+    }, [submissions]);
 
   /* =====================================================
      CSV EXPORT
   ===================================================== */
 
   const exportCSV = () => {
-    if (submissions.length === 0) {
+    if (
+      submissions.length ===
+      0
+    ) {
       showToast(
         "No claims available to export",
         "error"
@@ -760,41 +911,49 @@ function App() {
       "Incident Type",
       "Damage Type",
       "Police Report",
-      "Police Report Number",
-      "Created At",
+      "Status",
+      "Created At"
     ];
 
-    const rows = submissions.map(
-      (submission) => {
-        const data =
-          submission.data || {};
+    const rows =
+      submissions.map(
+        (submission) => {
+          const data =
+            submission.data ||
+            {};
 
-        return [
-          data.fullName || "",
-          data.email || "",
-          data.vehicle || "",
-          data.incidentType || "",
-          data.damageType || "",
-          data.policeReport || "",
-          data.policeReportNumber || "",
-          submission.createdAt
-            ? new Date(
-                submission.createdAt
-              ).toLocaleString()
-            : "",
-        ];
-      }
-    );
+          return [
+            data.fullName || "",
+            data.email || "",
+            data.vehicle || "",
+            data.incidentType ||
+              "",
+            data.damageType ||
+              "",
+            data.policeReport ||
+              "",
+            submission.status ||
+              "Pending",
+            submission.createdAt
+              ? new Date(
+                  submission.createdAt
+                ).toLocaleString()
+              : ""
+          ];
+        }
+      );
 
     const csvContent = [
       headers,
-      ...rows,
+      ...rows
     ]
       .map((row) =>
         row
           .map(
             (value) =>
-              `"${String(value).replace(
+              `"${String(
+                value
+              ).replace(
                 /"/g,
                 '""'
               )}"`
@@ -803,30 +962,43 @@ function App() {
       )
       .join("\n");
 
-    const blob = new Blob(
-      [csvContent],
-      {
-        type: "text/csv;charset=utf-8;",
-      }
-    );
+    const blob =
+      new Blob(
+        [csvContent],
+        {
+          type:
+            "text/csv;charset=utf-8;"
+        }
+      );
 
     const url =
-      URL.createObjectURL(blob);
+      URL.createObjectURL(
+        blob
+      );
 
     const link =
-      document.createElement("a");
+      document.createElement(
+        "a"
+      );
 
     link.href = url;
+
     link.download =
       "forma-ai-claims.csv";
 
-    document.body.appendChild(link);
+    document.body.appendChild(
+      link
+    );
 
     link.click();
 
-    document.body.removeChild(link);
+    document.body.removeChild(
+      link
+    );
 
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(
+      url
+    );
 
     showToast(
       "Claims exported successfully!",
@@ -835,10 +1007,12 @@ function App() {
   };
 
   /* =====================================================
-     PRINT CLAIM REPORT
+     PRINT REPORT
   ===================================================== */
 
-  const printClaim = (submission) => {
+  const printClaim = (
+    submission
+  ) => {
     const data =
       submission.data || {};
 
@@ -872,7 +1046,6 @@ function App() {
 
             h1 {
               color: #b88600;
-              margin-bottom: 5px;
             }
 
             h2 {
@@ -883,13 +1056,19 @@ function App() {
             .row {
               display: flex;
               justify-content: space-between;
-              gap: 30px;
               padding: 12px 0;
               border-bottom: 1px solid #eee;
             }
 
             .label {
               font-weight: bold;
+            }
+
+            .status {
+              font-weight: bold;
+              padding: 6px 12px;
+              border-radius: 6px;
+              background: #f1f1f1;
             }
 
             .footer {
@@ -942,6 +1121,14 @@ function App() {
           </div>
 
           <div class="row">
+            <span class="label">Claim Status</span>
+            <span class="status">${
+              submission.status ||
+              "Pending"
+            }</span>
+          </div>
+
+          <div class="row">
             <span class="label">Submitted</span>
             <span>
               ${
@@ -959,7 +1146,7 @@ function App() {
           </div>
 
           <script>
-            window.onload = function () {
+            window.onload = function() {
               window.print();
             };
           </script>
@@ -988,20 +1175,9 @@ function App() {
   if (!formSchema) {
     return (
       <div className="container">
-        <div className="loading">
-          <h2>
-            Unable to load form.
-          </h2>
-
-          <button
-            type="button"
-            onClick={() =>
-              window.location.reload()
-            }
-          >
-            🔄 Retry
-          </button>
-        </div>
+        <h2>
+          Unable to load form.
+        </h2>
       </div>
     );
   }
@@ -1013,19 +1189,16 @@ function App() {
   return (
     <div className="container">
 
-      {/* =================================================
-          TOAST
-      ================================================= */}
+      {/* TOAST */}
 
       {toast && (
         <div
           className={`toast toast-${toast.type}`}
         >
-          <span className="toast-icon">
-            {toast.type === "success"
-              ? "✓"
-              : "!"}
-          </span>
+          {toast.type ===
+          "success"
+            ? "✓"
+            : "!"}
 
           <span>
             {toast.message}
@@ -1033,11 +1206,9 @@ function App() {
         </div>
       )}
 
-      {/* =================================================
-          BRAND
-      ================================================= */}
+      {/* BRAND */}
 
-      <header className="brand-header">
+      <div className="brand-header">
 
         <div className="brand-icon">
           ✦
@@ -1053,16 +1224,13 @@ function App() {
           </p>
         </div>
 
-      </header>
+      </div>
 
-      {/* =================================================
-          DASHBOARD
-      ================================================= */}
+      {/* DASHBOARD */}
 
       <section className="dashboard">
 
         <div className="dashboard-header">
-
           <div>
             <h2>
               📊 Claim Dashboard
@@ -1072,7 +1240,6 @@ function App() {
               Overview of your insurance claims
             </p>
           </div>
-
         </div>
 
         <div className="stats-grid">
@@ -1143,16 +1310,100 @@ function App() {
 
         </div>
 
-        {/* =================================================
-            ADVANCED ANALYTICS
-        ================================================= */}
+        {/* STATUS DASHBOARD */}
+
+        <div className="status-dashboard">
+
+          <div className="status-dashboard-title">
+            <h2>
+              📌 Claim Status
+            </h2>
+
+            <p>
+              Current status of all submitted claims
+            </p>
+          </div>
+
+          <div className="status-stats-grid">
+
+            <div className="status-stat pending">
+              <span>
+                ⏳
+              </span>
+
+              <div>
+                <h3>
+                  Pending
+                </h3>
+
+                <strong>
+                  {pendingClaims}
+                </strong>
+              </div>
+            </div>
+
+            <div className="status-stat review">
+              <span>
+                🔍
+              </span>
+
+              <div>
+                <h3>
+                  Under Review
+                </h3>
+
+                <strong>
+                  {reviewClaims}
+                </strong>
+              </div>
+            </div>
+
+            <div className="status-stat approved">
+              <span>
+                ✅
+              </span>
+
+              <div>
+                <h3>
+                  Approved
+                </h3>
+
+                <strong>
+                  {approvedClaims}
+                </strong>
+              </div>
+            </div>
+
+            <div className="status-stat rejected">
+              <span>
+                ❌
+              </span>
+
+              <div>
+                <h3>
+                  Rejected
+                </h3>
+
+                <strong>
+                  {rejectedClaims}
+                </strong>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* ADVANCED CLAIM ANALYTICS */}
 
         <div className="analytics-section">
 
           <div className="analytics-title">
 
             <div>
-              <span>📊</span>
+              <span>
+                📊
+              </span>
 
               <h2>
                 Claim Analytics
@@ -1168,6 +1419,7 @@ function App() {
           <div className="analytics-grid">
 
             <div className="analytics-card">
+
               <span className="analytics-icon">
                 🚗
               </span>
@@ -1181,9 +1433,11 @@ function App() {
                   {analytics.accidents}
                 </strong>
               </div>
+
             </div>
 
             <div className="analytics-card">
+
               <span className="analytics-icon">
                 🚨
               </span>
@@ -1197,9 +1451,11 @@ function App() {
                   {analytics.thefts}
                 </strong>
               </div>
+
             </div>
 
             <div className="analytics-card">
+
               <span className="analytics-icon">
                 🐕
               </span>
@@ -1213,9 +1469,11 @@ function App() {
                   {analytics.animalCollisions}
                 </strong>
               </div>
+
             </div>
 
             <div className="analytics-card">
+
               <span className="analytics-icon">
                 🤖
               </span>
@@ -1229,9 +1487,11 @@ function App() {
                   {analytics.analyzed}
                 </strong>
               </div>
+
             </div>
 
             <div className="analytics-card">
+
               <span className="analytics-icon">
                 📈
               </span>
@@ -1245,9 +1505,11 @@ function App() {
                   {analytics.averageCompleteness}%
                 </strong>
               </div>
+
             </div>
 
             <div className="analytics-card">
+
               <span className="analytics-icon">
                 ⚠️
               </span>
@@ -1261,19 +1523,16 @@ function App() {
                   {analytics.claimsNeedingAttention}
                 </strong>
               </div>
+
             </div>
 
           </div>
-
-          {/* PRIORITY */}
 
           <div className="priority-panel">
 
             <h3>
               AI Priority Distribution
             </h3>
-
-            {/* HIGH */}
 
             <div className="priority-item">
 
@@ -1291,20 +1550,19 @@ function App() {
                 <span
                   style={{
                     width:
-                      analytics.analyzed > 0
+                      analytics.analyzed >
+                      0
                         ? `${
                             (analytics.highPriority /
                               analytics.analyzed) *
                             100
                           }%`
-                        : "0%",
+                        : "0%"
                   }}
                 />
               </div>
 
             </div>
-
-            {/* MEDIUM */}
 
             <div className="priority-item">
 
@@ -1322,20 +1580,19 @@ function App() {
                 <span
                   style={{
                     width:
-                      analytics.analyzed > 0
+                      analytics.analyzed >
+                      0
                         ? `${
                             (analytics.mediumPriority /
                               analytics.analyzed) *
                             100
                           }%`
-                        : "0%",
+                        : "0%"
                   }}
                 />
               </div>
 
             </div>
-
-            {/* LOW */}
 
             <div className="priority-item">
 
@@ -1353,13 +1610,14 @@ function App() {
                 <span
                   style={{
                     width:
-                      analytics.analyzed > 0
+                      analytics.analyzed >
+                      0
                         ? `${
                             (analytics.lowPriority /
                               analytics.analyzed) *
                             100
                           }%`
-                        : "0%",
+                        : "0%"
                   }}
                 />
               </div>
@@ -1372,9 +1630,7 @@ function App() {
 
       </section>
 
-      {/* =================================================
-          SUCCESS
-      ================================================= */}
+      {/* SUCCESS */}
 
       {submitSuccess && (
         <div className="success-message">
@@ -1391,7 +1647,9 @@ function App() {
           <button
             type="button"
             onClick={() =>
-              setSubmitSuccess(false)
+              setSubmitSuccess(
+                false
+              )
             }
           >
             Submit Another Claim
@@ -1400,59 +1658,63 @@ function App() {
         </div>
       )}
 
-      {/* =================================================
-          MAGIC INPUT
-      ================================================= */}
+      {/* MAGIC INPUT */}
 
-      <section className="magic-box">
+      <div className="magic-box">
 
         <h2>
           ✨ Magic Input
         </h2>
 
         <p>
-          Describe your claim naturally and
-          AI will automatically extract the
-          information.
+          Describe your claim naturally
+          and AI will automatically extract
+          the information.
         </p>
 
         <textarea
           value={magicText}
           onChange={(e) =>
-            setMagicText(e.target.value)
+            setMagicText(
+              e.target.value
+            )
           }
           placeholder="Example: My name is Vedansh Mishra, my email is vedansh@gmail.com, my car is a Honda City and it was an accident."
         />
 
         <button
           type="button"
-          onClick={handleMagicInput}
-          disabled={magicLoading}
+          onClick={
+            handleMagicInput
+          }
+          disabled={
+            magicLoading
+          }
         >
           {magicLoading
             ? "🤖 AI Processing..."
             : "✨ Extract with AI"}
         </button>
 
-      </section>
+      </div>
 
-      {/* =================================================
-          AI PREVIEW
-      ================================================= */}
+      {/* AI PREVIEW */}
 
       {aiPreview && (
-        <section className="ai-preview">
+        <div className="ai-preview">
 
           <h2>
             🤖 AI Extracted Information
           </h2>
 
           <p>
-            Review the extracted information
-            before applying it.
+            Review the extracted
+            information before applying it.
           </p>
 
-          {Object.entries(aiPreview).map(
+          {Object.entries(
+            aiPreview
+          ).map(
             ([field, value]) => (
               <div
                 className="preview-row"
@@ -1464,12 +1726,15 @@ function App() {
                 </span>
 
                 <input
-                  value={value || ""}
+                  value={
+                    value || ""
+                  }
                   onChange={(e) =>
                     setAiPreview({
                       ...aiPreview,
                       [field]:
-                        e.target.value,
+                        e.target
+                          .value
                     })
                   }
                 />
@@ -1480,27 +1745,31 @@ function App() {
 
           <button
             type="button"
-            onClick={applyAIData}
+            onClick={
+              applyAIData
+            }
           >
             ✅ Apply to Form
           </button>
 
-        </section>
+        </div>
       )}
 
-      {/* =================================================
-          CLAIM FORM
-      ================================================= */}
+      {/* FORM */}
 
       <form
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(
+          onSubmit
+        )}
       >
 
         {formSchema.fields.map(
           (field) => {
 
             if (
-              !shouldShowField(field)
+              !shouldShowField(
+                field
+              )
             ) {
               return null;
             }
@@ -1508,23 +1777,18 @@ function App() {
             return (
               <div
                 className="form-group"
-                key={field.name}
+                key={
+                  field.name
+                }
               >
 
-                <label htmlFor={field.name}>
+                <label>
                   {field.label}
-                  {field.required && (
-                    <span className="required-star">
-                      *
-                    </span>
-                  )}
                 </label>
 
-                {/* TEXT */}
-
-                {field.type === "text" && (
+                {field.type ===
+                  "text" && (
                   <input
-                    id={field.name}
                     type="text"
                     {...register(
                       field.name,
@@ -1539,23 +1803,22 @@ function App() {
                             ?.minLength
                             ? {
                                 value:
-                                  field.validation
+                                  field
+                                    .validation
                                     .minLength,
 
                                 message:
-                                  `${field.label} must be at least ${field.validation.minLength} characters`,
+                                  `${field.label} must be at least ${field.validation.minLength} characters`
                               }
-                            : undefined,
+                            : undefined
                       }
                     )}
                   />
                 )}
 
-                {/* EMAIL */}
-
-                {field.type === "email" && (
+                {field.type ===
+                  "email" && (
                   <input
-                    id={field.name}
                     type="email"
                     {...register(
                       field.name,
@@ -1571,31 +1834,30 @@ function App() {
                             ? {
                                 value:
                                   new RegExp(
-                                    field.validation
+                                    field
+                                      .validation
                                       .pattern
                                   ),
 
                                 message:
-                                  "Please enter a valid email address",
+                                  "Please enter a valid email address"
                               }
-                            : undefined,
+                            : undefined
                       }
                     )}
                   />
                 )}
 
-                {/* SELECT */}
-
-                {field.type === "select" && (
+                {field.type ===
+                  "select" && (
                   <select
-                    id={field.name}
                     {...register(
                       field.name,
                       {
                         required:
                           field.required
                             ? `${field.label} is required`
-                            : false,
+                            : false
                       }
                     )}
                   >
@@ -1604,8 +1866,10 @@ function App() {
                       Select an option
                     </option>
 
-                    {field.options?.map(
-                      (option) => (
+                    {field.options.map(
+                      (
+                        option
+                      ) => (
                         <option
                           key={
                             option.value
@@ -1614,7 +1878,9 @@ function App() {
                             option.value
                           }
                         >
-                          {option.label}
+                          {
+                            option.label
+                          }
                         </option>
                       )
                     )}
@@ -1622,9 +1888,9 @@ function App() {
                   </select>
                 )}
 
-                {/* ERROR */}
-
-                {errors[field.name] && (
+                {errors[
+                  field.name
+                ] && (
                   <p className="error">
                     {
                       errors[
@@ -1639,14 +1905,14 @@ function App() {
           }
         )}
 
-        {/* FORM ACTIONS */}
-
         <div className="form-actions">
 
           <button
             type="submit"
             className="submit-button"
-            disabled={submitLoading}
+            disabled={
+              submitLoading
+            }
           >
             {submitLoading
               ? "⏳ Saving Claim..."
@@ -1656,7 +1922,9 @@ function App() {
           <button
             type="button"
             className="clear-button"
-            onClick={clearForm}
+            onClick={
+              clearForm
+            }
           >
             🧹 Clear Form
           </button>
@@ -1669,7 +1937,7 @@ function App() {
           SUBMISSION HISTORY
       ================================================= */}
 
-      <section className="submission-history">
+      <div className="submission-history">
 
         <div className="history-header">
 
@@ -1688,8 +1956,12 @@ function App() {
 
             <button
               type="button"
-              onClick={loadSubmissions}
-              disabled={historyLoading}
+              onClick={
+                loadSubmissions
+              }
+              disabled={
+                historyLoading
+              }
             >
               {historyLoading
                 ? "Loading..."
@@ -1698,7 +1970,9 @@ function App() {
 
             <button
               type="button"
-              onClick={exportCSV}
+              onClick={
+                exportCSV
+              }
             >
               📥 Export CSV
             </button>
@@ -1707,7 +1981,7 @@ function App() {
 
         </div>
 
-        {/* SEARCH */}
+        {/* SEARCH / FILTER */}
 
         <div className="filter-panel">
 
@@ -1719,7 +1993,9 @@ function App() {
 
             <input
               type="text"
-              value={searchText}
+              value={
+                searchText
+              }
               onChange={(e) =>
                 setSearchText(
                   e.target.value
@@ -1730,10 +2006,10 @@ function App() {
 
           </div>
 
-          {/* INCIDENT */}
-
           <select
-            value={incidentFilter}
+            value={
+              incidentFilter
+            }
             onChange={(e) =>
               setIncidentFilter(
                 e.target.value
@@ -1759,10 +2035,10 @@ function App() {
 
           </select>
 
-          {/* SORT */}
-
           <select
-            value={sortOrder}
+            value={
+              sortOrder
+            }
             onChange={(e) =>
               setSortOrder(
                 e.target.value
@@ -1787,18 +2063,24 @@ function App() {
         <div className="result-count">
 
           Showing{" "}
+
           <strong>
-            {filteredSubmissions.length}
+            {
+              filteredSubmissions.length
+            }
           </strong>{" "}
+
           of{" "}
+
           <strong>
             {submissions.length}
           </strong>{" "}
+
           claims
 
         </div>
 
-        {/* EMPTY */}
+        {/* SUBMISSIONS */}
 
         {filteredSubmissions.length ===
         0 ? (
@@ -1825,319 +2107,391 @@ function App() {
           <div className="submission-list">
 
             {filteredSubmissions.map(
-              (submission) => {
+              (
+                submission
+              ) => (
 
-                const data =
-                  submission.data || {};
+                <div
+                  className="submission-card"
+                  key={
+                    submission._id
+                  }
+                >
 
-                const isAnalyzing =
-                  analyzingSubmissionId ===
-                  submission._id;
+                  <div className="claim-header">
 
-                return (
-                  <article
-                    className="submission-card"
-                    key={
-                      submission._id
-                    }
-                  >
+                    <div>
 
-                    {/* HEADER */}
+                      <h3>
+                        {submission.data
+                          ?.fullName ||
+                          "Unknown Claimant"}
+                      </h3>
 
-                    <div className="claim-header">
-
-                      <div>
-
-                        <h3>
-                          {data.fullName ||
-                            "Unknown Claimant"}
-                        </h3>
-
-                        <span className="claim-id">
-                          ID:{" "}
-                          {submission._id}
-                        </span>
-
-                      </div>
-
-                      <span className="claim-badge">
-                        {data.incidentType
-                          ? data.incidentType
-                              .replace(
-                                /_/g,
-                                " "
-                              )
-                          : "Unknown"}
+                      <span className="claim-id">
+                        ID:{" "}
+                        {
+                          submission._id
+                        }
                       </span>
 
                     </div>
 
-                    {/* DETAILS */}
-
-                    <div className="claim-details">
-
-                      <p>
-                        📧{" "}
-                        {data.email ||
-                          "No email"}
-                      </p>
-
-                      <p>
-                        🚗{" "}
-                        {data.vehicle ||
-                          "No vehicle"}
-                      </p>
-
-                      {data.damageType && (
-                        <p>
-                          🔧{" "}
-                          {String(
-                            data.damageType
-                          ).replace(
-                            /_/g,
-                            " "
-                          )}
-                        </p>
-                      )}
-
-                      <p className="submission-date">
-                        🕒{" "}
-                        {submission.createdAt
-                          ? new Date(
-                              submission.createdAt
-                            ).toLocaleString()
-                          : "Unknown date"}
-                      </p>
-
-                    </div>
-
-                    {/* ACTIONS */}
-
-                    <div className="submission-actions">
-
-                      <button
-                        type="button"
-                        className="view-button"
-                        onClick={() =>
-                          viewSubmission(
-                            submission._id
-                          )
-                        }
-                      >
-                        👁️ View / Edit
-                      </button>
-
-                      <button
-                        type="button"
-                        className="analyze-button"
-                        onClick={() =>
-                          analyzeSubmission(
-                            submission._id
-                          )
-                        }
-                        disabled={
-                          isAnalyzing ||
-                          analysisLoading
-                        }
-                      >
-                        {isAnalyzing
-                          ? "🤖 Analyzing..."
-                          : "🤖 Analyze Claim"}
-                      </button>
-
-                      <button
-                        type="button"
-                        className="print-button"
-                        onClick={() =>
-                          printClaim(
-                            submission
-                          )
-                        }
-                      >
-                        🖨️ Report
-                      </button>
-
-                      <button
-                        type="button"
-                        className="delete-button"
-                        onClick={() =>
-                          deleteSubmission(
-                            submission._id
-                          )
-                        }
-                      >
-                        🗑️ Delete
-                      </button>
-
-                    </div>
-
-                    {/* AI ANALYSIS */}
-
-                    {analysis?.submissionId ===
-                      submission._id && (
-
-                      <div className="analysis-card">
-
-                        <div className="analysis-title">
-                          🤖 AI Claim Analysis
-                        </div>
-
-                        {/* SCORE */}
-
-                        <div className="score-section">
-
-                          <div>
-                            <div className="score-label">
-                              Completeness Score
-                            </div>
-
-                            <div className="score-value">
-                              {
-                                analysis.completenessScore ??
-                                  0
-                              }
-                              /100
-                            </div>
-                          </div>
-
-                          <div>
-
-                            <div className="score-label">
-                              Priority
-                            </div>
-
-                            <span
-                              className={`priority priority-${String(
-                                analysis.priority ||
-                                  "medium"
+                    <span className="claim-badge">
+                      {
+                        submission.data
+                          ?.incidentType
+                          ? submission.data.incidentType
+                              .replace(
+                                "_",
+                                " "
                               )
-                                .toLowerCase()
-                                .replace(
-                                  /\s+/g,
-                                  "-"
-                                )}`}
-                            >
-                              {analysis.priority ||
-                                "Medium"}
-                            </span>
+                          : "Unknown"
+                      }
+                    </span>
 
+                  </div>
+
+                  {/* STATUS */}
+
+                  <div className="claim-status-section">
+
+                    <div className="status-label">
+                      <span>
+                        📌 Claim Status
+                      </span>
+
+                      <strong
+                        className={`status-text status-${String(
+                          submission.status ||
+                            "Pending"
+                        )
+                          .toLowerCase()
+                          .replace(
+                            /\s+/g,
+                            "-"
+                          )}`}
+                      >
+                        {
+                          submission.status ||
+                          "Pending"
+                        }
+                      </strong>
+                    </div>
+
+                    <select
+                      className={`status-select status-${String(
+                        submission.status ||
+                          "Pending"
+                      )
+                        .toLowerCase()
+                        .replace(
+                          /\s+/g,
+                          "-"
+                        )}`}
+                      value={
+                        submission.status ||
+                        "Pending"
+                      }
+                      onChange={(e) =>
+                        updateClaimStatus(
+                          submission._id,
+                          e.target.value
+                        )
+                      }
+                      disabled={
+                        statusUpdatingId ===
+                        submission._id
+                      }
+                    >
+
+                      <option value="Pending">
+                        ⏳ Pending
+                      </option>
+
+                      <option value="Under Review">
+                        🔍 Under Review
+                      </option>
+
+                      <option value="Approved">
+                        ✅ Approved
+                      </option>
+
+                      <option value="Rejected">
+                        ❌ Rejected
+                      </option>
+
+                    </select>
+
+                    {statusUpdatingId ===
+                      submission._id && (
+                      <span className="status-saving">
+                        Saving...
+                      </span>
+                    )}
+
+                  </div>
+
+                  <div className="claim-details">
+
+                    <p>
+                      📧{" "}
+                      {submission.data
+                        ?.email ||
+                        "No email"}
+                    </p>
+
+                    <p>
+                      🚗{" "}
+                      {submission.data
+                        ?.vehicle ||
+                        "No vehicle"}
+                    </p>
+
+                    {submission.data
+                      ?.damageType && (
+                      <p>
+                        🔧{" "}
+                        {submission.data.damageType.replace(
+                          "_",
+                          " "
+                        )}
+                      </p>
+                    )}
+
+                    <p className="submission-date">
+                      🕒{" "}
+                      {new Date(
+                        submission.createdAt
+                      ).toLocaleString()}
+                    </p>
+
+                  </div>
+
+                  {/* ACTIONS */}
+
+                  <div className="submission-actions">
+
+                    <button
+                      type="button"
+                      className="view-button"
+                      onClick={() =>
+                        viewSubmission(
+                          submission._id
+                        )
+                      }
+                    >
+                      👁️ View / Edit
+                    </button>
+
+                    <button
+                      type="button"
+                      className="analyze-button"
+                      onClick={() =>
+                        analyzeSubmission(
+                          submission._id
+                        )
+                      }
+                      disabled={
+                        analyzingSubmissionId ===
+                        submission._id
+                      }
+                    >
+                      {analyzingSubmissionId ===
+                      submission._id
+                        ? "🤖 Analyzing..."
+                        : "🤖 Analyze Claim"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="print-button"
+                      onClick={() =>
+                        printClaim(
+                          submission
+                        )
+                      }
+                    >
+                      🖨️ Report
+                    </button>
+
+                    <button
+                      type="button"
+                      className="delete-button"
+                      onClick={() =>
+                        deleteSubmission(
+                          submission._id
+                        )
+                      }
+                    >
+                      🗑️ Delete
+                    </button>
+
+                  </div>
+
+                  {/* AI ANALYSIS */}
+
+                  {analysis?.submissionId ===
+                    submission._id && (
+
+                    <div className="analysis-card">
+
+                      <div className="analysis-title">
+                        🤖 AI Claim Analysis
+                      </div>
+
+                      <div className="score-section">
+
+                        <div>
+
+                          <div className="score-label">
+                            Completeness Score
+                          </div>
+
+                          <div className="score-value">
+                            {
+                              analysis.completenessScore
+                            }
+                            /100
                           </div>
 
                         </div>
 
-                        {/* MISSING */}
+                        <div>
 
-                        <div className="analysis-section">
+                          <div className="score-label">
+                            Priority
+                          </div>
 
-                          <h4>
-                            ⚠️ Missing Information
-                          </h4>
-
-                          {analysis
-                            .missingInformation
-                            ?.length > 0 ? (
-
-                            <ul>
-
-                              {analysis.missingInformation.map(
-                                (
-                                  item,
-                                  index
-                                ) => (
-                                  <li
-                                    key={
-                                      index
-                                    }
-                                  >
-                                    {item}
-                                  </li>
-                                )
-                              )}
-
-                            </ul>
-
-                          ) : (
-
-                            <p>
-                              No missing
-                              information
-                              detected.
-                            </p>
-
-                          )}
-
-                        </div>
-
-                        {/* ISSUES */}
-
-                        <div className="analysis-section">
-
-                          <h4>
-                            🔍 Potential Issues
-                          </h4>
-
-                          {analysis.issues
-                            ?.length > 0 ? (
-
-                            <ul>
-
-                              {analysis.issues.map(
-                                (
-                                  item,
-                                  index
-                                ) => (
-                                  <li
-                                    key={
-                                      index
-                                    }
-                                  >
-                                    {item}
-                                  </li>
-                                )
-                              )}
-
-                            </ul>
-
-                          ) : (
-
-                            <p>
-                              No issues
-                              detected.
-                            </p>
-
-                          )}
-
-                        </div>
-
-                        {/* RECOMMENDATION */}
-
-                        <div className="recommendation">
-
-                          <h4>
-                            💡 AI Recommendation
-                          </h4>
-
-                          <p>
+                          <span
+                            className={`priority priority-${String(
+                              analysis.priority ||
+                                "medium"
+                            )
+                              .toLowerCase()
+                              .replace(
+                                /\s+/g,
+                                "-"
+                              )}`}
+                          >
                             {
-                              analysis.recommendation ||
-                              "No recommendation available."
+                              analysis.priority
                             }
-                          </p>
+                          </span>
 
                         </div>
 
                       </div>
-                    )}
 
-                  </article>
-                );
-              }
+                      <div className="analysis-section">
+
+                        <h4>
+                          ⚠️ Missing Information
+                        </h4>
+
+                        {analysis
+                          .missingInformation
+                          ?.length > 0 ? (
+
+                          <ul>
+
+                            {analysis.missingInformation.map(
+                              (
+                                item,
+                                index
+                              ) => (
+                                <li
+                                  key={
+                                    index
+                                  }
+                                >
+                                  {item}
+                                </li>
+                              )
+                            )}
+
+                          </ul>
+
+                        ) : (
+
+                          <p>
+                            No missing
+                            information
+                            detected.
+                          </p>
+
+                        )}
+
+                      </div>
+
+                      <div className="analysis-section">
+
+                        <h4>
+                          🔍 Potential Issues
+                        </h4>
+
+                        {analysis
+                          .issues
+                          ?.length > 0 ? (
+
+                          <ul>
+
+                            {analysis.issues.map(
+                              (
+                                item,
+                                index
+                              ) => (
+                                <li
+                                  key={
+                                    index
+                                  }
+                                >
+                                  {item}
+                                </li>
+                              )
+                            )}
+
+                          </ul>
+
+                        ) : (
+
+                          <p>
+                            No issues
+                            detected.
+                          </p>
+
+                        )}
+
+                      </div>
+
+                      <div className="recommendation">
+
+                        <h4>
+                          💡 AI Recommendation
+                        </h4>
+
+                        <p>
+                          {
+                            analysis.recommendation
+                          }
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                  )}
+
+                </div>
+
+              )
             )}
 
           </div>
+
         )}
 
-      </section>
+      </div>
 
       {/* =================================================
           EDIT SUBMISSION
@@ -2145,50 +2499,126 @@ function App() {
 
       {selectedSubmission && (
 
-        <section className="edit-section">
+        <div className="edit-section">
 
           <h2>
             ✏️ Edit Submission
           </h2>
 
           <p>
-            Update your saved insurance
-            claim.
+            Update your saved
+            insurance claim.
           </p>
 
-          {Object.entries(
-            editData
-          ).map(([field, value]) => (
+          {/* CURRENT STATUS */}
 
-            <div
-              className="edit-row"
-              key={field}
-            >
+          <div className="edit-status-box">
 
-              <label>
-                {field}
-              </label>
+            <label>
+              📌 Current Claim Status
+            </label>
 
-              <input
-                value={value || ""}
-                onChange={(e) =>
-                  setEditData({
-                    ...editData,
-                    [field]:
-                      e.target.value,
-                  })
+            <div className="edit-status-row">
+
+              <strong
+                className={`status-text status-${String(
+                  selectedSubmission.status ||
+                    "Pending"
+                )
+                  .toLowerCase()
+                  .replace(
+                    /\s+/g,
+                    "-"
+                  )}`}
+              >
+                {
+                  selectedSubmission.status ||
+                  "Pending"
                 }
-              />
+              </strong>
+
+              <select
+                className="status-select"
+                value={
+                  selectedSubmission.status ||
+                  "Pending"
+                }
+                onChange={(e) =>
+                  updateClaimStatus(
+                    selectedSubmission._id,
+                    e.target.value
+                  )
+                }
+                disabled={
+                  statusUpdatingId ===
+                  selectedSubmission._id
+                }
+              >
+
+                <option value="Pending">
+                  ⏳ Pending
+                </option>
+
+                <option value="Under Review">
+                  🔍 Under Review
+                </option>
+
+                <option value="Approved">
+                  ✅ Approved
+                </option>
+
+                <option value="Rejected">
+                  ❌ Rejected
+                </option>
+
+              </select>
 
             </div>
 
-          ))}
+          </div>
+
+          {Object.entries(
+            editData
+          ).map(
+            ([field, value]) => (
+
+              <div
+                className="edit-row"
+                key={field}
+              >
+
+                <label>
+                  {field}
+                </label>
+
+                <input
+                  value={
+                    value || ""
+                  }
+                  onChange={(e) =>
+                    setEditData({
+                      ...editData,
+                      [field]:
+                        e.target
+                          .value
+                    })
+                  }
+                />
+
+              </div>
+
+            )
+          )}
 
           <button
             type="button"
             className="save-button"
-            onClick={updateSubmission}
-            disabled={editLoading}
+            onClick={
+              updateSubmission
+            }
+            disabled={
+              editLoading
+            }
           >
             {editLoading
               ? "⏳ Updating..."
@@ -2199,15 +2629,20 @@ function App() {
             type="button"
             className="cancel-button"
             onClick={() => {
-              setSelectedSubmission(null);
+              setSelectedSubmission(
+                null
+              );
+
               setEditData({});
+
               setAnalysis(null);
             }}
           >
             ❌ Cancel
           </button>
 
-        </section>
+        </div>
+
       )}
 
     </div>

@@ -11,45 +11,118 @@ const analysisRoutes = require("./routes/analysisRoutes");
 
 const app = express();
 
-// =========================
-// CONNECT MONGODB
-// =========================
+
+// =====================================================
+// DATABASE
+// =====================================================
 
 connectDB();
 
-// =========================
+
+// =====================================================
 // MIDDLEWARE
-// =========================
+// =====================================================
 
-app.use(cors());
-app.use(express.json());
+app.use(
+  cors({
+    origin: "http://localhost:5173"
+  })
+);
 
-// =========================
-// ROUTES
-// =========================
+app.use(
+  express.json()
+);
 
-app.use("/api/forms", formRoutes);
-app.use("/api/ai", aiRoutes);
-app.use("/api/submissions", submissionRoutes);
-app.use("/api/analysis", analysisRoutes);
 
-// =========================
+// =====================================================
+// API ROUTES
+// =====================================================
+
+app.use(
+  "/api/forms",
+  formRoutes
+);
+
+app.use(
+  "/api/ai",
+  aiRoutes
+);
+
+app.use(
+  "/api/submissions",
+  submissionRoutes
+);
+
+app.use(
+  "/api/analysis",
+  analysisRoutes
+);
+
+
+// =====================================================
 // HEALTH CHECK
-// =========================
+// =====================================================
 
-app.get("/api/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "Forma AI Backend Running"
-  });
-});
+app.get(
+  "/api/health",
+  (req, res) => {
+    res.json({
+      success: true,
+      message:
+        "Forma AI Backend Running",
+      version: "Day 20"
+    });
+  }
+);
 
-// =========================
+
+// =====================================================
+// 404 HANDLER
+// =====================================================
+
+app.use(
+  (req, res) => {
+    res.status(404).json({
+      success: false,
+      message:
+        "API route not found"
+    });
+  }
+);
+
+
+// =====================================================
+// GLOBAL ERROR HANDLER
+// =====================================================
+
+app.use(
+  (error, req, res, next) => {
+    console.error(
+      "❌ Server Error:",
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Internal server error"
+    });
+  }
+);
+
+
+// =====================================================
 // START SERVER
-// =========================
+// =====================================================
 
-const PORT = process.env.PORT || 5000;
+const PORT =
+  process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Forma AI Server running on port ${PORT}`);
-});
+app.listen(
+  PORT,
+  () => {
+    console.log(
+      `🚀 Forma AI Server running on port ${PORT}`
+    );
+  }
+);

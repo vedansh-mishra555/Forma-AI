@@ -1,13 +1,13 @@
 const express = require("express");
-const mongoose = require("mongoose");
 const Submission = require("../models/Submission");
 
 const router = express.Router();
 
-/* =====================================================
-   GET ALL SUBMISSIONS
-   GET /api/submissions
-===================================================== */
+
+// =====================================================
+// GET ALL SUBMISSIONS
+// GET /api/submissions
+// =====================================================
 
 router.get("/", async (req, res) => {
   try {
@@ -16,10 +16,15 @@ router.get("/", async (req, res) => {
 
     res.json({
       success: true,
+      count: submissions.length,
       submissions
     });
+
   } catch (error) {
-    console.error("Fetch submissions error:", error);
+    console.error(
+      "❌ Fetch submissions error:",
+      error
+    );
 
     res.status(500).json({
       success: false,
@@ -29,23 +34,17 @@ router.get("/", async (req, res) => {
 });
 
 
-/* =====================================================
-   GET SINGLE SUBMISSION
-   GET /api/submissions/:id
-===================================================== */
+// =====================================================
+// GET SINGLE SUBMISSION
+// GET /api/submissions/:id
+// =====================================================
 
 router.get("/:id", async (req, res) => {
   try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid submission ID"
-      });
-    }
-
-    const submission = await Submission.findById(id);
+    const submission =
+      await Submission.findById(
+        req.params.id
+      );
 
     if (!submission) {
       return res.status(404).json({
@@ -58,8 +57,12 @@ router.get("/:id", async (req, res) => {
       success: true,
       submission
     });
+
   } catch (error) {
-    console.error("Fetch submission error:", error);
+    console.error(
+      "❌ Fetch submission error:",
+      error
+    );
 
     res.status(500).json({
       success: false,
@@ -69,35 +72,48 @@ router.get("/:id", async (req, res) => {
 });
 
 
-/* =====================================================
-   POST NEW SUBMISSION
-   POST /api/submissions
-===================================================== */
+// =====================================================
+// CREATE NEW SUBMISSION
+// POST /api/submissions
+// =====================================================
 
 router.post("/", async (req, res) => {
   try {
     const { formId, data } = req.body;
 
-    if (!formId || !data) {
+    // Validation
+    if (!formId) {
       return res.status(400).json({
         success: false,
-        message: "formId and data are required"
+        message: "formId is required"
       });
     }
 
-    const submission = await Submission.create({
-      formId,
-      data,
-      status: "Pending"
-    });
+    if (!data || typeof data !== "object") {
+      return res.status(400).json({
+        success: false,
+        message: "Valid submission data is required"
+      });
+    }
+
+    const submission =
+      await Submission.create({
+        formId,
+        data,
+        status: "Pending"
+      });
 
     res.status(201).json({
       success: true,
-      message: "Submission saved successfully",
+      message: "Claim submitted successfully",
       submission
     });
+
   } catch (error) {
-    console.error("Submission error:", error);
+    console.error(
+      "❌ Submission error:",
+      error
+    );
 
     res.status(500).json({
       success: false,
@@ -107,22 +123,14 @@ router.post("/", async (req, res) => {
 });
 
 
-/* =====================================================
-   UPDATE CLAIM STATUS
-   PATCH /api/submissions/:id/status
-===================================================== */
+// =====================================================
+// UPDATE CLAIM STATUS
+// PATCH /api/submissions/:id/status
+// =====================================================
 
 router.patch("/:id/status", async (req, res) => {
   try {
-    const { id } = req.params;
     const { status } = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid submission ID"
-      });
-    }
 
     const allowedStatuses = [
       "Pending",
@@ -131,7 +139,10 @@ router.patch("/:id/status", async (req, res) => {
       "Rejected"
     ];
 
-    if (!status || !allowedStatuses.includes(status)) {
+    if (
+      !status ||
+      !allowedStatuses.includes(status)
+    ) {
       return res.status(400).json({
         success: false,
         message: "Invalid claim status",
@@ -141,7 +152,7 @@ router.patch("/:id/status", async (req, res) => {
 
     const submission =
       await Submission.findByIdAndUpdate(
-        id,
+        req.params.id,
         {
           status
         },
@@ -163,8 +174,12 @@ router.patch("/:id/status", async (req, res) => {
       message: "Claim status updated successfully",
       submission
     });
+
   } catch (error) {
-    console.error("Status update error:", error);
+    console.error(
+      "❌ Status update error:",
+      error
+    );
 
     res.status(500).json({
       success: false,
@@ -174,35 +189,38 @@ router.patch("/:id/status", async (req, res) => {
 });
 
 
-/* =====================================================
-   UPDATE SUBMISSION DATA
-   PUT /api/submissions/:id
-===================================================== */
+// =====================================================
+// UPDATE CLAIM DATA
+// PUT /api/submissions/:id
+// =====================================================
 
 router.put("/:id", async (req, res) => {
   try {
-    const { id } = req.params;
     const { data } = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid submission ID"
-      });
-    }
 
     if (!data || typeof data !== "object") {
       return res.status(400).json({
         success: false,
-        message: "Submission data is required"
+        message: "Valid submission data is required"
       });
     }
 
     const submission =
       await Submission.findByIdAndUpdate(
-        id,
+        req.params.id,
         {
-          data
+          data,
+
+          // Old analysis is no longer valid
+          // after claim data changes.
+          analysis: {
+            completenessScore: null,
+            priority: null,
+            missingInformation: [],
+            issues: [],
+            recommendation: "",
+            analyzedAt: null
+          }
         },
         {
           new: true,
@@ -219,11 +237,15 @@ router.put("/:id", async (req, res) => {
 
     res.json({
       success: true,
-      message: "Submission updated successfully",
+      message: "Claim updated successfully",
       submission
     });
+
   } catch (error) {
-    console.error("Update submission error:", error);
+    console.error(
+      "❌ Update submission error:",
+      error
+    );
 
     res.status(500).json({
       success: false,
@@ -233,24 +255,17 @@ router.put("/:id", async (req, res) => {
 });
 
 
-/* =====================================================
-   DELETE SUBMISSION
-   DELETE /api/submissions/:id
-===================================================== */
+// =====================================================
+// DELETE CLAIM
+// DELETE /api/submissions/:id
+// =====================================================
 
 router.delete("/:id", async (req, res) => {
   try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid submission ID"
-      });
-    }
-
     const submission =
-      await Submission.findByIdAndDelete(id);
+      await Submission.findByIdAndDelete(
+        req.params.id
+      );
 
     if (!submission) {
       return res.status(404).json({
@@ -261,10 +276,14 @@ router.delete("/:id", async (req, res) => {
 
     res.json({
       success: true,
-      message: "Submission deleted successfully"
+      message: "Claim deleted successfully"
     });
+
   } catch (error) {
-    console.error("Delete submission error:", error);
+    console.error(
+      "❌ Delete submission error:",
+      error
+    );
 
     res.status(500).json({
       success: false,
@@ -273,9 +292,5 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-
-/* =====================================================
-   EXPORT ROUTER
-===================================================== */
 
 module.exports = router;

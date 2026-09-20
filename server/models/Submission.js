@@ -2,29 +2,40 @@ const mongoose = require("mongoose");
 
 const submissionSchema = new mongoose.Schema(
   {
+    // =====================================================
+    // FORM INFORMATION
+    // =====================================================
+
     formId: {
       type: String,
-      required: true
+      required: true,
+      trim: true
     },
+
+    // =====================================================
+    // CLAIM DATA
+    // =====================================================
 
     data: {
       type: mongoose.Schema.Types.Mixed,
       required: true
     },
 
-    // =========================
+    // =====================================================
     // AI CLAIM ANALYSIS
-    // =========================
+    // =====================================================
 
     analysis: {
       completenessScore: {
         type: Number,
+        min: 0,
+        max: 100,
         default: null
       },
 
       priority: {
         type: String,
-        enum: ["High", "Medium", "Low"],
+        enum: ["High", "Medium", "Low", null],
         default: null
       },
 
@@ -49,9 +60,9 @@ const submissionSchema = new mongoose.Schema(
       }
     },
 
-    // =========================
+    // =====================================================
     // CLAIM STATUS
-    // =========================
+    // =====================================================
 
     status: {
       type: String,
