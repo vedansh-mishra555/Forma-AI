@@ -51,7 +51,6 @@ function App() {
   ===================================================== */
 
   const [analysis, setAnalysis] = useState(null);
-
   const [, setAnalysisLoading] = useState(false);
 
   const [analyzingSubmissionId, setAnalyzingSubmissionId] =
@@ -62,7 +61,6 @@ function App() {
   ===================================================== */
 
   const [searchText, setSearchText] = useState("");
-
   const [incidentFilter, setIncidentFilter] =
     useState("all");
 
